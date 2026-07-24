@@ -16,7 +16,9 @@ async function request(method, path, body) {
     } catch (e) {
       /* body wasn't JSON - keep the generic message */
     }
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   const text = await res.text();
@@ -51,6 +53,8 @@ function uploadFile(roomId, file, onProgress) {
 
 export const Api = {
   me: () => request('GET', '/api/me'),
+  login: (username) => request('POST', '/api/login', { username }),
+  logout: () => request('POST', '/api/logout'),
   updateMySettings: (body) => request('PUT', '/api/me/settings', body),
 
   rooms: () => request('GET', '/api/rooms'),

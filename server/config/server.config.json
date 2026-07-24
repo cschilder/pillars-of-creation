@@ -1,7 +1,6 @@
 {
   "departmentName": "Afdeling Chat",
-  "prefixes": [ "http://+:8080/" ],
-  "authentication": "IntegratedWindowsAuthentication",
+  "port": 8080,
   "dataDir": "..\\data",
   "uploadsDir": "..\\uploads",
   "wwwrootDir": "..\\wwwroot",

@@ -1,11 +1,10 @@
 # Afdeling Chat
 
-Een lokaal gehoste chat-applicatie voor de afdeling: PowerShell-backend
-(`System.Net.HttpListener`), een HTML/Canvas front-end en styling/lay-out op
-basis van een **lokaal gevendorde** build van
-[Vanilla Framework](https://vanillaframework.io/) (geen CDN). Gebruikers
-loggen in met hun huidige Windows-sessie (`NETWERK.TLD\gebruikersnaam`) via
-Integrated Windows Authentication - er is geen apart wachtwoordscherm.
+Een lokaal gehoste chat-applicatie voor de afdeling: PowerShell-backend op
+een gewone `System.Net.Sockets.TcpListener` (bewust **geen**
+`System.Net.HttpListener`, zie hieronder waarom), een HTML/Canvas front-end
+en styling/lay-out op basis van een **lokaal gevendorde** build van
+[Vanilla Framework](https://vanillaframework.io/) (geen CDN).
 
 Dit is nadrukkelijk **geen Skype-kloon** (dat mag ook niet), maar een eigen
 opzet met vergelijkbare functionaliteit: chatrooms, bestanden delen, scherm
@@ -18,13 +17,26 @@ delen en spraakgesprekken.
 > configuratie, gebruikers- en roombeheer). Dit README richt zich vooral op
 > de technische opzet.
 
+## ⚠️ Belangrijk: inloggen is niet geverifieerd
+
+Gebruikers loggen in door zelf hun `NETWERK.TLD\gebruikersnaam` in te typen
+- dit wordt **niet** gecontroleerd tegen Active Directory of een
+wachtwoord. Wie er ook toegang heeft tot de server, kan zich voordoen als
+elke andere gebruiker. Dit is een bewuste keuze omdat er geen
+beheerdersrechten beschikbaar waren om `HttpListener` met Integrated
+Windows Authentication op te zetten (zie
+["Waarom geen HttpListener"](#waarom-geen-httplistener-en-dus-geen-integrated-windows-authentication)
+hieronder). **Draai deze server alleen binnen een netwerk dat je al
+vertrouwt**, en behandel het niet als een vervanging voor echte
+authenticatie.
+
 ## Functionaliteit
 
 - **Tabbladen-GUI**: Chats, Oproepen &amp; scherm delen, Instellingen, en
   (voor beheerders) Beheer.
-- **Windows-sessie login**: geen wachtwoordveld; de browser onderhandelt
-  automatisch met NTLM/Negotiate en de server leest `NETWERK.TLD\gebruiker`
-  uit de geverifieerde `HttpListenerContext`.
+- **Login zonder wachtwoord, wel zonder verificatie**: gebruikers typen
+  eenmalig hun `NETWERK.TLD\gebruikersnaam` in; de server onthoudt dat via
+  een cookie. Zie de beveiligingswaarschuwing hierboven.
 - **Openbare chatrooms**: door een beheerder aangemaakt, zichtbaar voor de
   hele afdeling; iedereen die lid is, is ook manager (kan onderwerp/naam
   wijzigen).
@@ -60,81 +72,89 @@ infrastructuur en dus niet "lokaal, alleen PowerShell". In plaats daarvan:
   "echte" WebRTC en is niet geschikt voor grote videostreams - het is
   bedoeld voor spraak en (laag-fps) scherm delen binnen een afdeling.
 - Target-runtime is **Windows PowerShell 5.1** (overal al aanwezig op
-  Windows, geen extra installatie nodig). `System.Net.HttpListener`
-  ondersteunt WebSockets ook onder .NET Framework 4.5+
-  (`HttpListenerContext.AcceptWebSocketAsync`).
+  Windows, geen extra installatie nodig).
 - Elke inkomende verbinding (statisch bestand, API-call, of een langdurig
   open WebSocket voor chat/gesprek) krijgt zijn **eigen PowerShell
   Runspace**, zodat één traag verzoek of open gesprek de rest van de
   afdeling niet blokkeert.
 
+### Waarom geen HttpListener (en dus geen Integrated Windows Authentication)
+
+`System.Net.HttpListener` is gebouwd op http.sys, en **elke** binding
+daarvan - inclusief `http://localhost:PORT/` - vereist ofwel dat het
+script als Administrator draait, ofwel een vooraf door een beheerder
+geregistreerde URL-reservering (`netsh http add urlacl`). Zonder iemand
+met adminrechten in de buurt is dat een doodlopende weg. Deze server draait
+daarom op een gewone `System.Net.Sockets.TcpListener`: het openen van een
+normale TCP-poort is op Windows nooit een verhoogde actie geweest. De
+keerzijde is dat Integrated Windows Authentication (die specifiek via
+http.sys werkt) hiermee ook wegvalt - vandaar de zelf-ingevulde,
+ongeverifieerde gebruikersnaam hierboven.
+
+`server/modules/MiniHttp.psm1` implementeert daarom zelf het benodigde
+stukje HTTP/1.1 (request parsen, response schrijven) en de WebSocket
+opening handshake (RFC 6455) met de hand, en levert een object terug dat
+er voor de rest van de code (`Http.psm1`, `Api.psm1`, `WebSocketHub.psm1`)
+precies zo uitziet als wat `HttpListener` zou hebben gegeven - daar
+hoefde dus verder niets aan te veranderen.
+
 ## Vereisten
 
 - Windows Server of Windows 10/11 met **Windows PowerShell 5.1**
   (`$PSVersionTable.PSVersion`).
-- De machine (of gebruikers) moet lid zijn van hetzelfde Active Directory
-  domein als de gebruikers, zodat Integrated Windows Authentication werkt.
+- **Geen** beheerdersrechten nodig - een gewoon gebruikersaccount volstaat
+  om de server te starten.
 - Chrome of Edge bij de gebruikers (voor `getDisplayMedia`, `MediaRecorder`
   en ES modules; Firefox werkt in de praktijk ook, Internet Explorer niet).
 
 ## Starten
 
-1. Open **PowerShell als Administrator** op de servermachine (nodig voor
-   de `http://+:8080/` binding en Integrated Windows Authentication).
-2. Zet in `server/config/server.config.json` minimaal je eigen
+1. Zet in `server/config/server.config.json` minimaal je eigen
    `initialAdmins` (bv. `"NETWERK.TLD\\jouwaccount"`), zodat je bij de
    eerste start toegang hebt tot het Beheer-tabblad.
-3. Start de server:
+2. Start de server (een heel gewoon, niet-verhoogd PowerShell-venster
+   volstaat):
 
    ```powershell
    cd server
    .\Start-ChatServer.ps1
    ```
 
-4. Open op elke werkplek in de browser: `http://<servernaam>:8080/`.
+3. Open op elke werkplek in de browser: `http://<servernaam>:8080/`.
 
-Wil je liever niet als Administrator draaien? Registreer dan eenmalig een
-URL-ACL voor de gebruikte poort (met een beheerdersaccount):
-
-```powershell
-netsh http add urlacl url=http://+:8080/ user="NETWERK.TLD\gebruikersnaam of groep"
-```
-
-en open de poort in de Windows Firewall:
+Wil je de server ook bereikbaar maken voor collega's op andere machines,
+open dan de gebruikte poort in de Windows Firewall (dit commando vereist
+zelf wel adminrechten - vraag dit eventueel eenmalig aan IT, het is een
+firewallregel, geen aparte poortreservering):
 
 ```powershell
 New-NetFirewallRule -DisplayName "Afdeling Chat" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 ```
 
-### Poort/adres aanpassen
+Zonder deze firewallregel werkt de server nog steeds prima voor jezelf op
+`http://localhost:8080/`; collega's op andere machines kunnen er dan alleen
+niet bij.
 
-Pas `prefixes` aan in `server/config/server.config.json`, bijvoorbeeld
-`"http://+:8080/"` naar een andere poort, of naar een specifieke hostnaam
-in plaats van de wildcard `+`.
+### Poort aanpassen
 
-### HTTPS
-
-Deze server draait standaard over gewoon HTTP, wat prima is binnen een
-vertrouwd bedrijfsnetwerk (NTLM-onderhandeling werkt ook over HTTP). Wil je
-TLS, dan kun je met `netsh http add sslcert` een certificaat aan de poort
-binden en het prefix wijzigen naar `https://+:8443/`; de rest van de code
-verandert niet.
+Pas `port` aan in `server/config/server.config.json`.
 
 ## Mappenstructuur
 
 ```
 server/
-  Start-ChatServer.ps1        Opstartscript (HttpListener + Windows Auth + accept-loop)
+  Start-ChatServer.ps1        Opstartscript (TcpListener + accept-loop, geen adminrechten nodig)
   config/server.config.json   Poort, paden, initiële beheerders
   modules/
-    Http.psm1                 Statische bestanden, JSON responses, multipart-parser
-    Store.psm1                JSON-opslag (rooms/users/berichten/bestanden) met locking
-    Auth.psm1                 Koppelt de geverifieerde Windows-identiteit aan een profiel
-    WebSocketHub.psm1         WebSocket-verbindingsregister + chat/presence/call-relay
-    Api.psm1                  REST routes onder /api/*
-    ConnectionWorker.ps1      Per-verbinding entrypoint (draait in een eigen Runspace)
+    MiniHttp.psm1              Eigen HTTP/1.1-parsing + WebSocket-handshake (i.p.v. HttpListener)
+    Http.psm1                  Statische bestanden, JSON responses, multipart-parser
+    Store.psm1                 JSON-opslag (rooms/users/berichten/bestanden) met locking
+    Auth.psm1                  Cookie-gebaseerde (ongeverifieerde) identiteit
+    WebSocketHub.psm1          WebSocket-verbindingsregister + chat/presence/call-relay
+    Api.psm1                   REST routes onder /api/*, incl. /api/login en /api/logout
+    ConnectionWorker.ps1        Per-verbinding entrypoint (draait in een eigen Runspace)
 wwwroot/
-  index.html                  SPA-shell met tabbladen
+  index.html                  SPA-shell met tabbladen + inlogformulier
   css/app.css                 App-specifieke stijl bovenop Vanilla Framework
   vendor/vanilla-framework/   Lokaal gecompileerde Vanilla Framework CSS (LGPLv3)
   js/                         ES-modules: api, ws, state, ui, chat, admin, settings,
@@ -167,11 +187,17 @@ beheerder je via het Beheer-tabblad promoveren) om:
 
 ## Bekende beperkingen
 
+- **Geen echte authenticatie** - zie de waarschuwing bovenaan dit
+  document. Elke gebruikersnaam wordt vertrouwd zonder controle.
 - Spraak/scherm delen is server-relayed, geen WebRTC: geschikt voor
   gesprekken binnen een afdeling op hetzelfde netwerk, niet voor
   grootschalige videoconferenties.
 - Er is geen end-to-end encryptie; verkeer is zo veilig als het interne
-  netwerk (en optioneel HTTPS, zie hierboven).
+  netwerk.
+- Geen HTTP keep-alive: elk verzoek (elk bestand, elke API-call) is zijn
+  eigen TCP-verbinding. Prima voor een LAN-app met een handvol
+  gebruikers, minder efficiënt dan een productie-webserver onder zware
+  belasting.
 - De WebSocket-clientregistratie leeft in het geheugen van het
   serverproces; een herstart van de server sluit actieve verbindingen
   (chatrooms, berichten, bestanden en gebruikersinstellingen blijven wel

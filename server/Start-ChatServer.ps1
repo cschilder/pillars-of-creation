@@ -7,9 +7,20 @@
         Host alles lokaal: statische bestanden (wwwroot, incl. de lokaal
         gevendorde Vanilla Framework CSS), een REST API onder /api/* en een
         WebSocket endpoint op /ws voor chat, presence, bestandsmeldingen en
-        de relay van gesprek/scherm-delen. Gebruikers loggen in met hun
-        huidige Windows-sessie (Integrated Windows Authentication); er is
-        geen apart wachtwoordscherm.
+        de relay van gesprek/scherm-delen.
+
+        Dit draait op een gewone System.Net.Sockets.TcpListener, geen
+        System.Net.HttpListener - dat laatste vereist altijd ofwel
+        Administrator-rechten, ofwel een vooraf door een beheerder
+        geregistreerde URL-reservering (netsh http add urlacl), zelfs voor
+        "http://localhost/". Met een TcpListener is geen van beide nodig:
+        een gewone poort openen was op Windows nooit een beheerdersactie.
+
+        De keerzijde: er is geen Integrated Windows Authentication meer.
+        Gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam in te
+        typen (zie /api/login) - dat wordt NIET geverifieerd tegen Active
+        Directory of een wachtwoord. Gebruik dit alleen binnen een netwerk
+        dat je al vertrouwt.
 
         Elke inkomende verbinding (statisch bestand, API-call of WebSocket)
         krijgt zijn eigen PowerShell Runspace, zodat een lang openstaand
@@ -22,6 +33,7 @@
     .EXAMPLE
         PS> .\Start-ChatServer.ps1
         Start de server met de instellingen uit config\server.config.json.
+        Werkt met een gewoon (niet-verhoogd) gebruikersaccount.
 #>
 [CmdletBinding()]
 param(
@@ -30,25 +42,6 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
-function Test-IsElevatedAdministrator {
-    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-if (-not (Test-IsElevatedAdministrator)) {
-    Write-Warning @'
-Dit script draait niet als Administrator. HttpListener heeft voor een
-"http://+:<poort>/" binding en Integrated Windows Authentication meestal
-verhoogde rechten nodig (of een vooraf geregistreerde URL-ACL). Start dit
-script als Administrator, of registreer eenmalig een ACL, bijvoorbeeld:
-
-    netsh http add urlacl url=http://+:8080/ user=NETWERK.TLD\gebruikersnaam
-
-Zie README.md voor de volledige uitleg.
-'@
-}
 
 # --- Config inlezen en paden oplossen -------------------------------------
 
@@ -64,12 +57,14 @@ function Resolve-ConfigPath {
 }
 
 $resolvedConfig = [pscustomobject]@{
-    DepartmentName = $rawConfig.departmentName
-    Prefixes       = @($rawConfig.prefixes)
-    DataDir        = Resolve-ConfigPath $rawConfig.dataDir
-    UploadsDir     = Resolve-ConfigPath $rawConfig.uploadsDir
-    WwwRootDir     = Resolve-ConfigPath $rawConfig.wwwrootDir
-    InitialAdmins  = @($rawConfig.initialAdmins)
+    DepartmentName      = $rawConfig.departmentName
+    Port                = [int]$rawConfig.port
+    DataDir             = Resolve-ConfigPath $rawConfig.dataDir
+    UploadsDir          = Resolve-ConfigPath $rawConfig.uploadsDir
+    WwwRootDir          = Resolve-ConfigPath $rawConfig.wwwrootDir
+    InitialAdmins       = @($rawConfig.initialAdmins)
+    MaxUploadSizeMb     = [int]$rawConfig.maxUploadSizeMb
+    MessageHistoryLimit = [int]$rawConfig.messageHistoryLimit
 }
 
 if (-not (Test-Path -LiteralPath $resolvedConfig.WwwRootDir)) {
@@ -80,6 +75,7 @@ if (-not (Test-Path -LiteralPath $resolvedConfig.WwwRootDir)) {
 
 $modulesDir = Join-Path $PSScriptRoot 'modules'
 $moduleFiles = @(
+    Join-Path $modulesDir 'MiniHttp.psm1'
     Join-Path $modulesDir 'Http.psm1'
     Join-Path $modulesDir 'Store.psm1'
     Join-Path $modulesDir 'Auth.psm1'
@@ -88,30 +84,36 @@ $moduleFiles = @(
 )
 foreach ($m in $moduleFiles) { Import-Module -Name $m -Force -DisableNameChecking }
 
-Initialize-Store -DataDir $resolvedConfig.DataDir -UploadsDir $resolvedConfig.UploadsDir -InitialAdmins $resolvedConfig.InitialAdmins | Out-Null
+Initialize-Store -DataDir $resolvedConfig.DataDir -UploadsDir $resolvedConfig.UploadsDir -InitialAdmins $resolvedConfig.InitialAdmins `
+    -DepartmentName $resolvedConfig.DepartmentName -MaxUploadSizeMb $resolvedConfig.MaxUploadSizeMb -MessageHistoryLimit $resolvedConfig.MessageHistoryLimit | Out-Null
 Initialize-WsHub
 
 $initialSessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
-$initialSessionState.ImportPSModule($moduleFiles)
+# One call per module, NOT $initialSessionState.ImportPSModule($moduleFiles)
+# with the whole array at once: that single-call form silently imports
+# nothing at all (confirmed - Get-Module comes back empty in the resulting
+# Runspace, with no error anywhere) once more than one module path is
+# involved. Calling it once per path works reliably.
+foreach ($m in $moduleFiles) { $initialSessionState.ImportPSModule([string[]]@($m)) }
 
 $workerScriptPath = Join-Path $modulesDir 'ConnectionWorker.ps1'
 
-# --- HttpListener opzetten --------------------------------------------------
+# --- TcpListener opzetten ---------------------------------------------------
+# Bewust geen HttpListener: dat vereist altijd Administrator-rechten of een
+# vooraf door een beheerder geregistreerde URL-ACL. Een normale TCP-poort
+# openen is op Windows nooit een verhoogde actie geweest.
 
-Add-Type -AssemblyName System.Net.Http -ErrorAction SilentlyContinue
-
-$listener = New-Object System.Net.HttpListener
-foreach ($prefix in $resolvedConfig.Prefixes) { $listener.Prefixes.Add($prefix) }
-$listener.AuthenticationSchemes = [System.Net.AuthenticationSchemes]::IntegratedWindowsAuthentication
+$tcpListener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $resolvedConfig.Port)
 
 try {
-    $listener.Start()
+    $tcpListener.Start()
 }
 catch {
     Write-Error @"
-Kon de HttpListener niet starten op $($resolvedConfig.Prefixes -join ', ').
-Meestal betekent dit dat de poort al in gebruik is, of dat er geen
-rechten/URL-ACL zijn voor deze binding. Zie README.md.
+Kon niet luisteren op poort $($resolvedConfig.Port).
+Meestal betekent dit dat de poort al in gebruik is door een ander
+programma. Kies een andere poort in server.config.json (veld "port") en
+probeer opnieuw.
 
 Onderliggende fout: $($_.Exception.Message)
 "@
@@ -120,10 +122,15 @@ Onderliggende fout: $($_.Exception.Message)
 
 Write-Host ''
 Write-Host "=== $($resolvedConfig.DepartmentName) - chatserver gestart ===" -ForegroundColor Green
-Write-Host "Luistert op: $($resolvedConfig.Prefixes -join ', ')"
+Write-Host "Luistert op: http://0.0.0.0:$($resolvedConfig.Port)/ (geen Administrator-rechten nodig)"
 Write-Host "wwwroot:     $($resolvedConfig.WwwRootDir)"
 Write-Host "data:        $($resolvedConfig.DataDir)"
 Write-Host "uploads:     $($resolvedConfig.UploadsDir)"
+Write-Host ''
+Write-Host 'Let op: gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam' -ForegroundColor Yellow
+Write-Host 'in te typen - dit wordt niet tegen Active Directory geverifieerd. Draai' -ForegroundColor Yellow
+Write-Host 'deze server alleen binnen een netwerk dat je al vertrouwt.' -ForegroundColor Yellow
+Write-Host ''
 Write-Host 'Druk op Ctrl+C om te stoppen.'
 Write-Host ''
 
@@ -155,17 +162,17 @@ function Remove-CompletedWorkers {
 }
 
 try {
-    while ($listener.IsListening) {
-        $context = $null
+    while ($true) {
+        $client = $null
         try {
-            $context = $listener.GetContext()
-        }
-        catch [System.Net.HttpListenerException] {
-            if ($listener.IsListening) { Write-Warning "GetContext-fout: $($_.Exception.Message)" }
-            continue
+            $client = $tcpListener.AcceptTcpClient()
         }
         catch [System.ObjectDisposedException] {
             break
+        }
+        catch [System.Net.Sockets.SocketException] {
+            Write-Warning "AcceptTcpClient-fout: $($_.Exception.Message)"
+            continue
         }
 
         Remove-CompletedWorkers -Workers $activeWorkers
@@ -174,7 +181,7 @@ try {
         $runspace.Open()
         $psInstance = [powershell]::Create()
         $psInstance.Runspace = $runspace
-        [void]$psInstance.AddCommand($workerScriptPath).AddParameter('Context', $context).AddParameter('Config', $resolvedConfig)
+        [void]$psInstance.AddCommand($workerScriptPath).AddParameter('TcpClient', $client).AddParameter('Config', $resolvedConfig)
         $asyncHandle = $psInstance.BeginInvoke()
 
         $activeWorkers.Add([pscustomobject]@{ PS = $psInstance; RS = $runspace; Handle = $asyncHandle })
@@ -182,8 +189,7 @@ try {
 }
 finally {
     Write-Host 'Server stopt...' -ForegroundColor Yellow
-    try { $listener.Stop() } catch { }
-    try { $listener.Close() } catch { }
+    try { $tcpListener.Stop() } catch { }
     foreach ($w in $activeWorkers) {
         try { $w.PS.Stop() } catch { }
         try { $w.PS.Dispose() } catch { }

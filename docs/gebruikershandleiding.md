@@ -21,15 +21,18 @@ dan ook in de [Beheerdershandleiding](beheerdershandleiding.md).
 
 ## Inloggen
 
-Je hoeft nergens een gebruikersnaam of wachtwoord in te typen. Zodra je de
-pagina opent, herkent de server automatisch je huidige Windows-sessie
-(`NETWERK.TLD\gebruikersnaam`) en log je vanzelf in.
+Zodra je de pagina opent, vul je eenmalig je eigen `NETWERK.TLD\gebruikersnaam`
+in en klik je op **Inloggen**. Er is geen wachtwoord nodig.
 
-![Inlogscherm terwijl de Windows-sessie wordt herkend](images/01-inloggen.png)
+![Inlogscherm met naam-invoer en waarschuwing dat deze niet geverifieerd wordt](images/01-inloggen.png)
 
-Als het inloggen langer duurt dan een paar seconden of mislukt, zie je een
-foutmelding. Kijk dan bij de [veelgestelde vragen](#veelgestelde-vragen)
-hieronder of neem contact op met je beheerder.
+> **Let op:** deze naam wordt niet gecontroleerd - vul altijd je eigen naam
+> naar waarheid in. Zolang je niet uitlogt (via **Wissel van gebruiker**
+> rechtsboven), hoef je hierna niet opnieuw in te loggen.
+
+Lukt het inloggen niet? Controleer of je de naam in het juiste formaat hebt
+ingevuld (`NETWERK.TLD\gebruikersnaam`, met een backslash) en kijk anders bij
+de [veelgestelde vragen](#veelgestelde-vragen) hieronder.
 
 ## De vier tabbladen
 
@@ -137,9 +140,9 @@ Op het tabblad **Instellingen** pas je je eigen voorkeuren aan:
 
 ![Gebruikersinstellingen, lichte weergave](images/07-instellingen-licht.png)
 
-- **Weergavenaam overschrijven** - laat leeg om de naam uit je
-  Windows-account te gebruiken, of vul een andere naam in die collega's dan
-  zien in de chat.
+- **Weergavenaam overschrijven** - laat leeg om de naam te gebruiken die
+  volgt uit je inlognaam, of vul een andere naam in die collega's dan zien
+  in de chat.
 - **Thema** - kies Licht of Donker.
 - **Geluid bij nieuwe berichten** - schakel het meldingsgeluid uit als je
   daar geen behoefte aan hebt.
@@ -150,12 +153,17 @@ Klik op **Opslaan**. Het donkere thema ziet er zo uit:
 
 ## Veelgestelde vragen
 
-**Ik zie alleen "Bezig met aanmelden..." en kom niet verder.**
-Controleer of je de pagina opent in Chrome of Edge, binnen het
-bedrijfsnetwerk, en dat je bent ingelogd op een domeincomputer. Lukt het na
-een herlaad nog steeds niet, neem dan contact op met je beheerder - mogelijk
-moet Integrated Windows Authentication nog worden gecontroleerd (zie de
-beheerdershandleiding).
+**Ik krijg een foutmelding bij het inloggen.**
+Controleer of je de gebruikersnaam met een backslash hebt ingevuld, in de
+vorm `NETWERK.TLD\gebruikersnaam`. Blijft het mislukken, controleer of je
+wel bij de server kunt (open bijvoorbeeld `http://<servernaam>:8080/` nog
+eens opnieuw) en neem anders contact op met je beheerder.
+
+**Kan iemand anders zich voordoen als mij door mijn naam in te typen?**
+Ja - deze server controleert de ingevulde naam niet tegen een wachtwoord of
+Active Directory. Gebruik hem alleen binnen een netwerk/team dat je al
+vertrouwt, en meld het bij je beheerder als je vermoedt dat iemand een
+verkeerde naam heeft gebruikt.
 
 **Kan ik zelf een openbare chatroom aanmaken?**
 Nee, openbare (afdelingsbrede) rooms maakt alleen een beheerder aan. Wil je
