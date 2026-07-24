@@ -120,9 +120,38 @@ Onderliggende fout: $($_.Exception.Message)
     return
 }
 
+function Get-LocalIPv4Addresses {
+    # PowerShell unrolls an array crossing a function return boundary (0
+    # matches becomes $null, 1 match becomes a bare scalar instead of a
+    # 1-element array) - wrap the whole pipeline in @() in one go and
+    # comma-protect the return so callers reliably get a real array back,
+    # even with zero or one matching address.
+    try {
+        $addresses = @([System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) |
+            Where-Object { $_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and -not [System.Net.IPAddress]::IsLoopback($_) } |
+            ForEach-Object { $_.ToString() })
+        return , $addresses
+    }
+    catch { return , @() }
+}
+
 Write-Host ''
 Write-Host "=== $($resolvedConfig.DepartmentName) - chatserver gestart ===" -ForegroundColor Green
-Write-Host "Luistert op: http://0.0.0.0:$($resolvedConfig.Port)/ (geen Administrator-rechten nodig)"
+# 0.0.0.0 (IPAddress.Any) is het bind-adres - "luister op alle netwerk-
+# interfaces van deze machine" - en is zelf GEEN adres om in de browser te
+# openen; dat geeft een lege/mislukte pagina. Print daarom de daadwerkelijk
+# bruikbare URL's.
+Write-Host "Luistert op poort $($resolvedConfig.Port) (geen Administrator-rechten nodig). Open in de browser:"
+Write-Host "  - Op deze machine:       http://localhost:$($resolvedConfig.Port)/" -ForegroundColor Cyan
+$localIps = Get-LocalIPv4Addresses
+if ($localIps.Count -gt 0) {
+    foreach ($ip in $localIps) {
+        Write-Host "  - Vanaf een andere pc:   http://${ip}:$($resolvedConfig.Port)/" -ForegroundColor Cyan
+    }
+}
+else {
+    Write-Host "  - Vanaf een andere pc:   http://<hostnaam-of-IP-van-deze-pc>:$($resolvedConfig.Port)/" -ForegroundColor Cyan
+}
 Write-Host "wwwroot:     $($resolvedConfig.WwwRootDir)"
 Write-Host "data:        $($resolvedConfig.DataDir)"
 Write-Host "uploads:     $($resolvedConfig.UploadsDir)"
