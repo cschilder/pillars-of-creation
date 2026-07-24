@@ -84,7 +84,9 @@ try {
     Send-RawHttpResponse -Context $Context
 }
 catch {
-    Write-Warning "Verbindingsfout: $($_.Exception.Message)"
+    $errPosition = "$($_.InvocationInfo.PositionMessage)".Replace("`r", ' ').Replace("`n", ' ')
+    $errStack = "$($_.ScriptStackTrace)".Replace("`r", ' ').Replace("`n", ' > ')
+    Write-Warning "Verbindingsfout: $($_.Exception.Message) | Bij: $errPosition | Stack: $errStack"
     # Once the WebSocket opening handshake has been written to the socket,
     # the stream is speaking the WebSocket framing protocol from the
     # client's point of view - writing a second, plain-text HTTP response

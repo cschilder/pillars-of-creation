@@ -174,8 +174,16 @@ function Remove-CompletedWorkers {
             $state -eq [System.Management.Automation.PSInvocationState]::Failed -or
             $state -eq [System.Management.Automation.PSInvocationState]::Stopped) {
             try {
+                # ConnectionWorker.ps1 runs in this Runspace and can only write
+                # to *its own* streams, not directly to this console - Write-
+                # Warning there lands in $w.PS.Streams.Warning, not the Error
+                # stream, so it must be drained separately or it's silently
+                # lost (HadErrors only reflects the Error stream).
                 if ($w.PS.HadErrors) {
                     foreach ($e in $w.PS.Streams.Error) { Write-Warning "Workerfout: $($e.ToString())" }
+                }
+                if ($w.PS.Streams.Warning.Count -gt 0) {
+                    foreach ($wm in $w.PS.Streams.Warning) { Write-Warning "Workerwaarschuwing: $($wm.Message)" }
                 }
                 $w.PS.EndInvoke($w.Handle)
             }
