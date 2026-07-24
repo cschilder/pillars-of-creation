@@ -120,6 +120,52 @@ Onderliggende fout: $($_.Exception.Message)
     return
 }
 
+# --- Ctrl+C nette afsluiting ------------------------------------------------
+# $tcpListener.AcceptTcpClient() is een synchrone, blokkerende .NET-aanroep
+# zonder enig "yield point" voor de PowerShell-engine. Twee dingen zijn
+# empirisch getest (los van elkaar geverifieerd) om hier een nette Ctrl+C-
+# afsluiting op te bouwen:
+#   1. Register-ObjectEvent op Console.CancelKeyPress WERKT NIET hiervoor:
+#      de .NET-event vuurt zelf meteen af, maar de PowerShell-eventing-
+#      engine kan de bijbehorende -Action pas UITVOEREN zodra de eigen
+#      Runspace weer even "vrij" is (een yield point heeft) - en die is
+#      hier juist voor onbepaalde tijd vast in AcceptTcpClient(). Getest:
+#      de Action vuurde pas af nadat er alsnog een client binnenkwam.
+#   2. Een aparte PowerShell Runspace/thread heeft dit probleem niet en kan
+#      gewoon parallel blijven draaien terwijl de hoofdthread vastzit. Door
+#      Ctrl+C zelf als toetsaanslag te lezen (in plaats van als OS-signaal)
+#      via [Console]::TreatControlCAsInput + een blokkerende
+#      [Console]::ReadKey() in zo'n aparte Runspace, en van daaruit
+#      $tcpListener.Stop() aan te roepen, wordt de vastzittende
+#      AcceptTcpClient()-aanroep wel degelijk ontgrendeld (getest: binnen
+#      ~2 seconde), met een SocketException als gevolg - die PowerShell's
+#      typed "catch [System.Net.Sockets.SocketException]" gewoon matcht,
+#      ook al wordt hij onderweg in een MethodInvocationException verpakt.
+# Elke Runspace heeft zijn EIGEN global scope - $global: in het
+# ReadKey-scriptblock hieronder zou dus NIET terugschrijven naar deze
+# (hoofd-)Runspace. Een [hashtable]::Synchronized(...) is wel een gedeeld
+# .NET-object: SetVariable geeft de child-Runspace een referentie naar
+# hetzelfde object, dus wijzigingen daarin zijn ook hier zichtbaar.
+$stopFlag = [hashtable]::Synchronized(@{ Requested = $false })
+[Console]::TreatControlCAsInput = $true
+$ctrlCRunspace = [runspacefactory]::CreateRunspace()
+$ctrlCRunspace.Open()
+$ctrlCRunspace.SessionStateProxy.SetVariable('listener', $tcpListener)
+$ctrlCRunspace.SessionStateProxy.SetVariable('stopFlag', $stopFlag)
+$ctrlCWatcher = [powershell]::Create()
+$ctrlCWatcher.Runspace = $ctrlCRunspace
+[void]$ctrlCWatcher.AddScript({
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::C -and ($key.Modifiers -band [ConsoleModifiers]::Control)) {
+            $stopFlag.Requested = $true
+            $listener.Stop()
+            break
+        }
+    }
+})
+$ctrlCHandle = $ctrlCWatcher.BeginInvoke()
+
 function Get-LocalIPv4Addresses {
     # PowerShell unrolls an array crossing a function return boundary (0
     # matches becomes $null, 1 match becomes a bare scalar instead of a
@@ -208,6 +254,9 @@ try {
             break
         }
         catch [System.Net.Sockets.SocketException] {
+            if ($stopFlag.Requested) {
+                break
+            }
             Write-Warning "AcceptTcpClient-fout: $($_.Exception.Message)"
             continue
         }
@@ -227,6 +276,15 @@ try {
 finally {
     Write-Host 'Server stopt...' -ForegroundColor Yellow
     try { $tcpListener.Stop() } catch { }
+    try { [Console]::TreatControlCAsInput = $false } catch { }
+    # Als de lus stopte doordat de gebruiker Ctrl+C indrukte, is het
+    # ReadKey()-scriptblock in $ctrlCWatcher daardoor al vanzelf gestopt (de
+    # "break" hierboven in de watcher) en is Dispose() hier meteen klaar. Als
+    # de lus om een andere reden stopte, zit die watcher nog vast in een
+    # blokkerende ReadKey()-aanroep - dat is een background thread die het
+    # afsluiten van het proces niet tegenhoudt, dus bewust geen blokkerende
+    # .Close() hier (die zou zelf kunnen blijven hangen).
+    try { $ctrlCWatcher.Dispose() } catch { }
     foreach ($w in $activeWorkers) {
         try { $w.PS.Stop() } catch { }
         try { $w.PS.Dispose() } catch { }
