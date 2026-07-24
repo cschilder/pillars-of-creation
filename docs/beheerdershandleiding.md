@@ -47,7 +47,8 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
 Omdat er geen beheerdersrechten nodig zijn om deze server te draaien, is er
 ook geen Integrated Windows Authentication (dat werkt alleen via
 `HttpListener`/http.sys). In plaats daarvan typt elke gebruiker zelf zijn
-`NETWERK.TLD\gebruikersnaam` in bij het inloggen - **dit wordt niet
+naam of nickname in bij het inloggen (`NETWERK.TLD\gebruikersnaam` of
+gewoon `jansen`) - **dit wordt niet
 gecontroleerd tegen Active Directory of een wachtwoord.** Wie er toegang
 toe heeft, kan zich voordoen als een willekeurige andere gebruiker,
 inclusief beheerders (als die naam geraden of bekend is).
@@ -282,10 +283,11 @@ tot de oudere, op `HttpListener` gebaseerde opzet is hiervoor nooit
 verhoogde toegang nodig.
 
 **Gebruikers krijgen een foutmelding bij het inloggen.**
-Controleer of ze de naam met een backslash hebben ingevuld
-(`NETWERK.TLD\gebruikersnaam`). Blijft het mislukken, controleer of de
-servermachine daadwerkelijk bereikbaar is vanaf hun werkplek (poort open in
-de firewall, zie [De server starten](#de-server-starten)).
+Controleer of het veld niet leeg is gebleven en niet meer dan één backslash
+bevat - zowel `NETWERK.TLD\gebruikersnaam` als een korte nickname (bv.
+`jansen`) zijn geldig. Blijft het mislukken, controleer of de servermachine
+daadwerkelijk bereikbaar is vanaf hun werkplek (poort open in de firewall,
+zie [De server starten](#de-server-starten)).
 
 **Chatberichten of oproepen komen niet aan / blijven "verbinden".**
 Controleer of er geen firewall of proxy tussen gebruikers en de server in

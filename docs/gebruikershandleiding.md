@@ -21,8 +21,10 @@ dan ook in de [Beheerdershandleiding](beheerdershandleiding.md).
 
 ## Inloggen
 
-Zodra je de pagina opent, vul je eenmalig je eigen `NETWERK.TLD\gebruikersnaam`
-in en klik je op **Inloggen**. Er is geen wachtwoord nodig.
+Zodra je de pagina opent, vul je eenmalig je eigen naam in en klik je op
+**Inloggen**. Dat mag je volledige `NETWERK.TLD\gebruikersnaam` zijn, of
+gewoon een korte nickname zoals `jansen` - beide werken. Er is geen
+wachtwoord nodig.
 
 ![Inlogscherm met naam-invoer en waarschuwing dat deze niet geverifieerd wordt](images/01-inloggen.png)
 
@@ -30,9 +32,9 @@ in en klik je op **Inloggen**. Er is geen wachtwoord nodig.
 > naar waarheid in. Zolang je niet uitlogt (via **Wissel van gebruiker**
 > rechtsboven), hoef je hierna niet opnieuw in te loggen.
 
-Lukt het inloggen niet? Controleer of je de naam in het juiste formaat hebt
-ingevuld (`NETWERK.TLD\gebruikersnaam`, met een backslash) en kijk anders bij
-de [veelgestelde vragen](#veelgestelde-vragen) hieronder.
+Lukt het inloggen niet? Zorg dat het veld niet leeg is en niet meer dan één
+backslash bevat, en kijk anders bij de
+[veelgestelde vragen](#veelgestelde-vragen) hieronder.
 
 ## De vier tabbladen
 
@@ -154,10 +156,11 @@ Klik op **Opslaan**. Het donkere thema ziet er zo uit:
 ## Veelgestelde vragen
 
 **Ik krijg een foutmelding bij het inloggen.**
-Controleer of je de gebruikersnaam met een backslash hebt ingevuld, in de
-vorm `NETWERK.TLD\gebruikersnaam`. Blijft het mislukken, controleer of je
-wel bij de server kunt (open bijvoorbeeld `http://<servernaam>:8080/` nog
-eens opnieuw) en neem anders contact op met je beheerder.
+Controleer of het veld niet leeg is gebleven. Zowel `NETWERK.TLD\gebruikersnaam`
+als een korte nickname (bv. `jansen`) werken, zolang er niet meer dan één
+backslash in staat. Blijft het mislukken, controleer of je wel bij de server
+kunt (open bijvoorbeeld `http://<servernaam>:8080/` nog eens opnieuw) en
+neem anders contact op met je beheerder.
 
 **Kan iemand anders zich voordoen als mij door mijn naam in te typen?**
 Ja - deze server controleert de ingevulde naam niet tegen een wachtwoord of

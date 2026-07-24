@@ -21,7 +21,14 @@
 
 Set-StrictMode -Version Latest
 
-$script:UsernamePattern = '^[^\\]+\\[^\\]+$'
+# Accepts either the classic "NETWERK.TLD\gebruikersnaam" form, or a plain
+# nickname with no backslash at all. Since there is no verification against
+# Active Directory either way (see module docstring above), the domain
+# prefix was never doing real work - it just made initialAdmins entries
+# and login harder to type. A plain nickname set in server.config.json's
+# initialAdmins (matched case-insensitively, see Store.psm1 Test-IsAdmin)
+# is now enough to make whoever types that exact name an admin.
+$script:UsernamePattern = '^[^\\]{1,64}(\\[^\\]{1,64})?$'
 
 function Test-ValidUsernameFormat {
     param([string]$Username)
