@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Afdeling Chat</title>
+  <link rel="stylesheet" href="/vendor/vanilla-framework/vanilla-framework.min.css" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+  <header class="p-navigation" id="app-navigation">
+    <div class="p-navigation__row">
+      <div class="p-navigation__banner">
+        <div class="p-navigation__tagged-logo">
+          <span class="p-navigation__logo-tag">Chat</span>
+          <span class="p-navigation__logo-title" id="department-name">Afdeling Chat</span>
+        </div>
+      </div>
+      <nav class="p-navigation__nav" aria-label="Gebruikersmenu">
+        <ul class="p-navigation__items" id="user-menu">
+          <li class="p-navigation__item">
+            <span class="p-navigation__link is-disabled" id="current-user-label">Aanmelden...</span>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app-root" class="u-hide">
+    <div class="p-tabs" role="navigation" aria-label="Hoofdnavigatie">
+      <ul class="p-tabs__list" role="tablist">
+        <li class="p-tabs__item" role="presentation">
+          <a href="#chats" class="p-tabs__link is-active" role="tab" data-tab="chats">Chats</a>
+        </li>
+        <li class="p-tabs__item" role="presentation">
+          <a href="#calls" class="p-tabs__link" role="tab" data-tab="calls">Oproepen &amp; scherm delen</a>
+        </li>
+        <li class="p-tabs__item" role="presentation">
+          <a href="#settings" class="p-tabs__link" role="tab" data-tab="settings">Instellingen</a>
+        </li>
+        <li class="p-tabs__item" role="presentation" id="admin-tab-item" hidden>
+          <a href="#admin" class="p-tabs__link" role="tab" data-tab="admin">Beheer</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="p-strip is-shallow">
+      <div class="row">
+
+        <!-- ============ CHATS TAB ============ -->
+        <section id="tab-chats" class="tab-panel" data-tab-panel="chats">
+          <div class="row">
+            <div class="col-3">
+              <div class="p-panel room-list-panel">
+                <div class="p-panel__header">
+                  <h4 class="p-panel__title">Chatrooms</h4>
+                  <div class="p-panel__controls">
+                    <button class="p-button--base is-small" id="btn-request-room" type="button" title="Privé chatroom aanvragen">+ Privé</button>
+                  </div>
+                </div>
+                <div class="p-panel__content">
+                  <ul class="p-list room-list" id="room-list" aria-label="Chatroomlijst"></ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-9">
+              <div class="p-panel chat-panel" id="chat-panel">
+                <div class="p-panel__header" id="chat-header">
+                  <div>
+                    <h4 class="p-panel__title" id="chat-room-name">Selecteer een chatroom</h4>
+                    <p class="u-no-margin--bottom u-text--muted" id="chat-room-topic"></p>
+                  </div>
+                  <div class="p-panel__controls" id="chat-room-controls" hidden>
+                    <span class="p-chip is-inline" id="chat-online-chip" title="Online in deze room">
+                      <span class="p-chip__value">0 online</span>
+                    </span>
+                    <button class="p-button--positive is-small" id="btn-start-call" type="button">Bel</button>
+                    <button class="p-button--base is-small" id="btn-manage-room" type="button" hidden>Beheer room</button>
+                  </div>
+                </div>
+                <div class="p-panel__content chat-messages-wrapper">
+                  <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+                  <p class="u-text--muted" id="chat-typing-indicator" aria-live="polite"></p>
+                </div>
+                <div class="p-panel__footer" id="chat-composer" hidden>
+                  <form id="message-form" class="chat-composer-form">
+                    <input type="text" id="message-input" placeholder="Typ een bericht..." autocomplete="off" maxlength="8000" />
+                    <label class="p-button--base is-small file-upload-button" for="file-input" title="Bestand delen">
+                      📎
+                      <input type="file" id="file-input" hidden />
+                    </label>
+                    <button class="p-button--positive" type="submit">Verstuur</button>
+                  </form>
+                  <div id="upload-progress" class="upload-progress" hidden></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ CALLS / SCREEN SHARE TAB ============ -->
+        <section id="tab-calls" class="tab-panel u-hide" data-tab-panel="calls">
+          <div class="p-notification--information">
+            <p class="p-notification__content">
+              Gesprekken en scherm delen lopen via de server van deze afdeling (geen peer-to-peer
+              WebRTC): microfoon-audio en scherm-frames worden doorgestuurd naar iedereen die
+              dezelfde chatroom open heeft staan. Kies eerst een chatroom bij "Chats" en klik daar
+              op <strong>Bel</strong>, of start hieronder direct als je al in een room zit.
+            </p>
+          </div>
+
+          <div class="row call-active-row" id="call-active-row" hidden>
+            <div class="col-6">
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Gesprek: <span id="call-room-name"></span></h4></div>
+                <div class="p-panel__content">
+                  <div id="call-participants" class="call-participants"></div>
+                  <div class="call-controls">
+                    <button class="p-button--base" id="btn-toggle-mic" type="button">🎙️ Microfoon aan</button>
+                    <button class="p-button--base" id="btn-toggle-screenshare" type="button">🖥️ Scherm delen starten</button>
+                    <button class="p-button--negative" id="btn-leave-call" type="button">Ophangen</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Gedeeld scherm</h4></div>
+                <div class="p-panel__content screenshare-viewport">
+                  <canvas id="screenshare-canvas" width="1280" height="720"></canvas>
+                  <p class="u-text--muted" id="screenshare-status">Niemand deelt op dit moment het scherm.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p id="no-active-call-message" class="u-text--muted">Geen actief gesprek. Ga naar een chatroom en klik op "Bel".</p>
+        </section>
+
+        <!-- ============ SETTINGS TAB (user configuratie) ============ -->
+        <section id="tab-settings" class="tab-panel u-hide" data-tab-panel="settings">
+          <div class="row">
+            <div class="col-6">
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Gebruikersinstellingen</h4></div>
+                <div class="p-panel__content">
+                  <form id="user-settings-form">
+                    <label for="setting-username">Windows-account</label>
+                    <input type="text" id="setting-username" disabled />
+
+                    <label for="setting-displayname">Weergavenaam (overschrijven)</label>
+                    <input type="text" id="setting-displayname" placeholder="Standaard: naam uit Windows-account" />
+
+                    <label for="setting-theme">Thema</label>
+                    <select id="setting-theme">
+                      <option value="light">Licht</option>
+                      <option value="dark">Donker</option>
+                    </select>
+
+                    <label class="p-checkbox">
+                      <input type="checkbox" id="setting-notifications" class="p-checkbox__input" checked />
+                      <span class="p-checkbox__label">Geluid bij nieuwe berichten</span>
+                    </label>
+
+                    <button class="p-button--positive" type="submit">Opslaan</button>
+                    <span id="user-settings-saved" class="u-text--muted u-hide">Opgeslagen.</span>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ ADMIN TAB (app configuratie + beheer) ============ -->
+        <section id="tab-admin" class="tab-panel u-hide" data-tab-panel="admin">
+          <div class="row">
+            <div class="col-6">
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">App-configuratie</h4></div>
+                <div class="p-panel__content">
+                  <form id="app-config-form">
+                    <label for="cfg-department">Afdelingsnaam</label>
+                    <input type="text" id="cfg-department" />
+
+                    <label for="cfg-upload-limit">Maximale uploadgrootte (MB)</label>
+                    <input type="number" id="cfg-upload-limit" min="1" max="2000" />
+
+                    <label for="cfg-history-limit">Berichtgeschiedenis per room (aantal)</label>
+                    <input type="number" id="cfg-history-limit" min="50" max="5000" />
+
+                    <button class="p-button--positive" type="submit">Opslaan</button>
+                    <span id="app-config-saved" class="u-text--muted u-hide">Opgeslagen.</span>
+                  </form>
+                </div>
+              </div>
+
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Nieuwe openbare chatroom</h4></div>
+                <div class="p-panel__content">
+                  <form id="new-public-room-form">
+                    <label for="new-room-name">Naam</label>
+                    <input type="text" id="new-room-name" required />
+                    <label for="new-room-topic">Onderwerp</label>
+                    <input type="text" id="new-room-topic" />
+                    <p class="u-text--muted">Openbaar en zichtbaar voor de hele afdeling. Iedereen is hierin manager.</p>
+                    <button class="p-button--positive" type="submit">Aanmaken</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6">
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Aanvragen privé chatrooms</h4></div>
+                <div class="p-panel__content">
+                  <ul class="p-list" id="room-request-list"></ul>
+                </div>
+              </div>
+
+              <div class="p-panel">
+                <div class="p-panel__header"><h4 class="p-panel__title">Gebruikers</h4></div>
+                <div class="p-panel__content">
+                  <table class="p-table" id="admin-users-table">
+                    <thead>
+                      <tr><th>Gebruiker</th><th>Laatst gezien</th><th>Online</th><th>Beheerder</th></tr>
+                    </thead>
+                    <tbody id="admin-users-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <div id="login-gate" class="p-strip">
+    <div class="row">
+      <div class="col-6">
+        <div class="p-notification--negative u-hide" id="login-error">
+          <p class="p-notification__content"></p>
+        </div>
+        <p id="login-status">Bezig met aanmelden via je Windows-sessie...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: privé chatroom aanvragen ============ -->
+  <div class="p-modal u-hide" id="modal-request-room" aria-hidden="true">
+    <section class="p-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title-request">
+      <header class="p-modal__header">
+        <h2 class="p-modal__title" id="modal-title-request">Privé chatroom aanvragen</h2>
+        <button class="p-modal__close" type="button" data-close-modal>Sluiten</button>
+      </header>
+      <form id="request-room-form">
+        <label for="req-room-name">Naam</label>
+        <input type="text" id="req-room-name" required />
+        <label for="req-room-purpose">Doel / omschrijving</label>
+        <textarea id="req-room-purpose" rows="3"></textarea>
+        <label for="req-room-members">Voorgestelde leden (komma-gescheiden, bv. NETWORK.TLD\naam)</label>
+        <input type="text" id="req-room-members" placeholder="NETWORK.TLD\jansen, NETWORK.TLD\devries" />
+        <footer class="p-modal__footer">
+          <button class="p-button--base" type="button" data-close-modal>Annuleren</button>
+          <button class="p-button--positive" type="submit">Aanvragen</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <!-- ============ MODAL: room beheren (leden/managers) ============ -->
+  <div class="p-modal u-hide" id="modal-manage-room" aria-hidden="true">
+    <section class="p-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title-manage">
+      <header class="p-modal__header">
+        <h2 class="p-modal__title" id="modal-title-manage">Room beheren</h2>
+        <button class="p-modal__close" type="button" data-close-modal>Sluiten</button>
+      </header>
+      <div class="p-modal__content">
+        <h4>Leden &amp; managers</h4>
+        <ul id="manage-room-member-list" class="p-list"></ul>
+        <form id="add-member-form">
+          <label for="add-member-username">Gebruiker toevoegen (NETWORK.TLD\naam)</label>
+          <input type="text" id="add-member-username" required />
+          <label class="p-checkbox">
+            <input type="checkbox" id="add-member-as-manager" class="p-checkbox__input" />
+            <span class="p-checkbox__label">Als manager toevoegen</span>
+          </label>
+          <button class="p-button--positive" type="submit">Toevoegen</button>
+        </form>
+        <hr />
+        <form id="edit-room-form">
+          <label for="edit-room-name">Naam</label>
+          <input type="text" id="edit-room-name" />
+          <label for="edit-room-topic">Onderwerp</label>
+          <input type="text" id="edit-room-topic" />
+          <button class="p-button--positive" type="submit">Wijzigingen opslaan</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <audio id="remote-audio-sink" hidden></audio>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

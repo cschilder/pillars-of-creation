@@ -1,0 +1,15 @@
+{
+  "departmentName": "Afdeling Chat",
+  "prefixes": [ "http://+:8080/" ],
+  "authentication": "IntegratedWindowsAuthentication",
+  "dataDir": "..\\data",
+  "uploadsDir": "..\\uploads",
+  "wwwrootDir": "..\\wwwroot",
+  "maxUploadSizeMb": 100,
+  "messageHistoryLimit": 500,
+  "screenFrameMaxBytes": 400000,
+  "audioChunkMaxBytes": 200000,
+  "initialAdmins": [
+    "NETWORK.TLD\\admin"
+  ]
+}
