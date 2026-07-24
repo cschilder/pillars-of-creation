@@ -114,7 +114,7 @@ function Invoke-Login {
     $username = if ($body -and $body.username) { "$($body.username)".Trim() } else { '' }
 
     if (-not (Test-ValidUsernameFormat -Username $username)) {
-        Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Vul een gebruikersnaam of nickname in (bijvoorbeeld "jansen" of "NETWERK.TLD\jansen").'
+        Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Vul een nickname in (bijvoorbeeld "jansen").'
         return
     }
 

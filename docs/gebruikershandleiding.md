@@ -21,10 +21,8 @@ dan ook in de [Beheerdershandleiding](beheerdershandleiding.md).
 
 ## Inloggen
 
-Zodra je de pagina opent, vul je eenmalig je eigen naam in en klik je op
-**Inloggen**. Dat mag je volledige `NETWERK.TLD\gebruikersnaam` zijn, of
-gewoon een korte nickname zoals `jansen` - beide werken. Er is geen
-wachtwoord nodig.
+Zodra je de pagina opent, vul je eenmalig je eigen nickname in (bv.
+`jansen`) en klik je op **Inloggen**. Er is geen wachtwoord nodig.
 
 ![Inlogscherm met naam-invoer en waarschuwing dat deze niet geverifieerd wordt](images/01-inloggen.png)
 
@@ -32,9 +30,8 @@ wachtwoord nodig.
 > naar waarheid in. Zolang je niet uitlogt (via **Wissel van gebruiker**
 > rechtsboven), hoef je hierna niet opnieuw in te loggen.
 
-Lukt het inloggen niet? Zorg dat het veld niet leeg is en niet meer dan één
-backslash bevat, en kijk anders bij de
-[veelgestelde vragen](#veelgestelde-vragen) hieronder.
+Lukt het inloggen niet? Zorg dat het veld niet leeg is, en kijk anders bij
+de [veelgestelde vragen](#veelgestelde-vragen) hieronder.
 
 ## De vier tabbladen
 
@@ -101,8 +98,8 @@ team? Klik bij **Chatrooms** op **+ Privé**.
 ![Formulier om een privé chatroom aan te vragen](images/03-prive-room-aanvragen.png)
 
 Vul een naam, een korte omschrijving en eventueel alvast een paar
-voorgestelde leden in (met hun volledige `NETWERK.TLD\gebruikersnaam`,
-komma-gescheiden). Klik op **Aanvragen**.
+voorgestelde leden in (hun nickname, komma-gescheiden). Klik op
+**Aanvragen**.
 
 Je aanvraag gaat naar de beheerder(s), die de room aanmaakt en daarbij de
 definitieve leden en managers instelt (meestal ben jij dat zelf, als
@@ -156,10 +153,9 @@ Klik op **Opslaan**. Het donkere thema ziet er zo uit:
 ## Veelgestelde vragen
 
 **Ik krijg een foutmelding bij het inloggen.**
-Controleer of het veld niet leeg is gebleven. Zowel `NETWERK.TLD\gebruikersnaam`
-als een korte nickname (bv. `jansen`) werken, zolang er niet meer dan één
-backslash in staat. Blijft het mislukken, controleer of je wel bij de server
-kunt (open bijvoorbeeld `http://<servernaam>:8080/` nog eens opnieuw) en
+Controleer of het veld niet leeg is gebleven. Blijft het mislukken,
+controleer of je wel bij de server kunt (open bijvoorbeeld
+`http://<servernaam>:8080/` nog eens opnieuw) en
 neem anders contact op met je beheerder.
 
 **Kan iemand anders zich voordoen als mij door mijn naam in te typen?**

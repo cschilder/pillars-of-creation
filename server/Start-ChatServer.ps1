@@ -17,10 +17,11 @@
         een gewone poort openen was op Windows nooit een beheerdersactie.
 
         De keerzijde: er is geen Integrated Windows Authentication meer.
-        Gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam in te
-        typen (zie /api/login) - dat wordt NIET geverifieerd tegen Active
-        Directory of een wachtwoord. Gebruik dit alleen binnen een netwerk
-        dat je al vertrouwt.
+        Gebruikers loggen in door zelf een nickname te typen (zie
+        /api/login) - dat wordt NIET geverifieerd tegen Active Directory of
+        een wachtwoord. Wie er in initialAdmins (server.config.json) staat,
+        is na het inloggen met die exacte nickname automatisch admin.
+        Gebruik dit alleen binnen een netwerk dat je al vertrouwt.
 
         Elke inkomende verbinding (statisch bestand, API-call of WebSocket)
         krijgt zijn eigen PowerShell Runspace, zodat een lang openstaand
@@ -42,6 +43,15 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Handmatig opgehoogd bij elke merged fix - NIET automatisch uit git, want
+# dit script draait vaak vanuit een losse kopie zonder .git-map. Print dit
+# als allereerste regel, voor de configuratie zelfs is ingelezen, zodat een
+# screenshot van de opstart altijd meteen laat zien of dit wel/niet de
+# nieuwste versie is (dit voorkomt de "zelfde bug na de fix" verwarring die
+# ontstaat als een oude kopie van de bestanden per ongeluk blijft draaien).
+$script:AppBuildVersion = '2026-07-24.4-ps51-login-fix'
+Write-Host "Build: $script:AppBuildVersion" -ForegroundColor DarkGray
 
 # --- Config inlezen en paden oplossen -------------------------------------
 
@@ -182,7 +192,7 @@ function Get-LocalIPv4Addresses {
 }
 
 Write-Host ''
-Write-Host "=== $($resolvedConfig.DepartmentName) - chatserver gestart ===" -ForegroundColor Green
+Write-Host "=== $($resolvedConfig.DepartmentName) - chatserver gestart (build $script:AppBuildVersion) ===" -ForegroundColor Green
 # 0.0.0.0 (IPAddress.Any) is het bind-adres - "luister op alle netwerk-
 # interfaces van deze machine" - en is zelf GEEN adres om in de browser te
 # openen; dat geeft een lege/mislukte pagina. Print daarom de daadwerkelijk
@@ -202,9 +212,10 @@ Write-Host "wwwroot:     $($resolvedConfig.WwwRootDir)"
 Write-Host "data:        $($resolvedConfig.DataDir)"
 Write-Host "uploads:     $($resolvedConfig.UploadsDir)"
 Write-Host ''
-Write-Host 'Let op: gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam' -ForegroundColor Yellow
-Write-Host 'in te typen - dit wordt niet tegen Active Directory geverifieerd. Draai' -ForegroundColor Yellow
-Write-Host 'deze server alleen binnen een netwerk dat je al vertrouwt.' -ForegroundColor Yellow
+Write-Host 'Let op: gebruikers loggen in met alleen een zelfgekozen nickname - dit' -ForegroundColor Yellow
+Write-Host 'wordt niet tegen Active Directory geverifieerd. Wie in initialAdmins' -ForegroundColor Yellow
+Write-Host '(server.config.json) staat, is na inloggen met die exacte nickname admin.' -ForegroundColor Yellow
+Write-Host 'Draai deze server alleen binnen een netwerk dat je al vertrouwt.' -ForegroundColor Yellow
 Write-Host ''
 Write-Host 'Druk op Ctrl+C om te stoppen.'
 Write-Host ''

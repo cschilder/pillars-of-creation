@@ -46,9 +46,8 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
 
 Omdat er geen beheerdersrechten nodig zijn om deze server te draaien, is er
 ook geen Integrated Windows Authentication (dat werkt alleen via
-`HttpListener`/http.sys). In plaats daarvan typt elke gebruiker zelf zijn
-naam of nickname in bij het inloggen (`NETWERK.TLD\gebruikersnaam` of
-gewoon `jansen`) - **dit wordt niet
+`HttpListener`/http.sys). In plaats daarvan typt elke gebruiker zelf een
+nickname in bij het inloggen (bv. `jansen`) - **dit wordt niet
 gecontroleerd tegen Active Directory of een wachtwoord.** Wie er toegang
 toe heeft, kan zich voordoen als een willekeurige andere gebruiker,
 inclusief beheerders (als die naam geraden of bekend is).
@@ -94,7 +93,7 @@ Praktisch betekent dit:
      "screenFrameMaxBytes": 400000,
      "audioChunkMaxBytes": 200000,
      "initialAdmins": [
-       "NETWERK.TLD\\jouw-gebruikersnaam"
+       "jouw-nickname"
      ]
    }
    ```
@@ -129,18 +128,29 @@ cd D:\AfdelingChat\server
 Je ziet dan zoiets als:
 
 ```
-=== Afdeling Chat - chatserver gestart ===
-Luistert op: http://0.0.0.0:8080/ (geen Administrator-rechten nodig)
+Build: 2026-07-24.3-nickname-only-login
+
+=== Afdeling Chat - chatserver gestart (build 2026-07-24.3-nickname-only-login) ===
+Luistert op poort 8080 (geen Administrator-rechten nodig). Open in de browser:
+  - Op deze machine:       http://localhost:8080/
+  - Vanaf een andere pc:   http://192.168.1.50:8080/
 wwwroot:     D:\AfdelingChat\wwwroot
 data:        D:\AfdelingChat\data
 uploads:     D:\AfdelingChat\uploads
 
-Let op: gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam
-in te typen - dit wordt niet tegen Active Directory geverifieerd. Draai
-deze server alleen binnen een netwerk dat je al vertrouwt.
+Let op: gebruikers loggen in met alleen een zelfgekozen nickname - dit
+wordt niet tegen Active Directory geverifieerd. Wie in initialAdmins
+(server.config.json) staat, is na inloggen met die exacte nickname admin.
+Draai deze server alleen binnen een netwerk dat je al vertrouwt.
 
 Druk op Ctrl+C om te stoppen.
 ```
+
+De `Build: ...`-regel bovenaan verandert bij elke update van deze server.
+Komt die niet overeen met wat in de broncode staat (zie de eerste regels
+van `Start-ChatServer.ps1`), dan draai je een oude kopie van de bestanden -
+haal dan een verse kopie op (zie [Installeren](#installeren)) voor je verder
+zoekt naar de oorzaak van een probleem.
 
 Laat dit venster openstaan (of richt de server later in als Windows-dienst /
 geplande taak die bij het opstarten van de server automatisch draait - dat
@@ -245,9 +255,9 @@ het tabblad **Chats**.
 
 ![Leden en managers van een privéroom beheren](images/10-room-beheren.png)
 
-- Voeg een gebruiker toe met het volledige `NETWERK.TLD\gebruikersnaam`
-  formaat, en vink **Als manager toevoegen** aan als die persoon ook zelf
-  leden moet kunnen beheren.
+- Voeg een gebruiker toe met de nickname waarmee die persoon zelf inlogt, en
+  vink **Als manager toevoegen** aan als die persoon ook zelf leden moet
+  kunnen beheren.
 - Klik op **Verwijderen** naast een naam om iemand uit de room te
   verwijderen (dit verwijdert ook het managerschap, mocht die persoon
   manager zijn).
@@ -283,10 +293,8 @@ tot de oudere, op `HttpListener` gebaseerde opzet is hiervoor nooit
 verhoogde toegang nodig.
 
 **Gebruikers krijgen een foutmelding bij het inloggen.**
-Controleer of het veld niet leeg is gebleven en niet meer dan één backslash
-bevat - zowel `NETWERK.TLD\gebruikersnaam` als een korte nickname (bv.
-`jansen`) zijn geldig. Blijft het mislukken, controleer of de servermachine
-daadwerkelijk bereikbaar is vanaf hun werkplek (poort open in de firewall,
+Controleer of het veld niet leeg is gebleven. Blijft het mislukken,
+controleer of de servermachine daadwerkelijk bereikbaar is vanaf hun werkplek (poort open in de firewall,
 zie [De server starten](#de-server-starten)).
 
 **Chatberichten of oproepen komen niet aan / blijven "verbinden".**

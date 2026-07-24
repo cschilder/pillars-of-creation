@@ -9,6 +9,6 @@
   "screenFrameMaxBytes": 400000,
   "audioChunkMaxBytes": 200000,
   "initialAdmins": [
-    "NETWORK.TLD\\admin"
+    "admin"
   ]
 }

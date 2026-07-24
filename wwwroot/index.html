@@ -149,11 +149,11 @@
                 <div class="p-panel__header"><h4 class="p-panel__title">Gebruikersinstellingen</h4></div>
                 <div class="p-panel__content">
                   <form id="user-settings-form">
-                    <label for="setting-username">Windows-account</label>
+                    <label for="setting-username">Nickname (ingelogd als)</label>
                     <input type="text" id="setting-username" disabled />
 
                     <label for="setting-displayname">Weergavenaam (overschrijven)</label>
-                    <input type="text" id="setting-displayname" placeholder="Standaard: naam uit Windows-account" />
+                    <input type="text" id="setting-displayname" placeholder="Standaard: je nickname" />
 
                     <label for="setting-theme">Thema</label>
                     <select id="setting-theme">
@@ -257,8 +257,8 @@
               <p class="p-notification__content"></p>
             </div>
             <form id="login-form">
-              <label for="login-username">Gebruikersnaam of nickname</label>
-              <input type="text" id="login-username" placeholder="jansen (of NETWERK.TLD\jansen)" required autofocus />
+              <label for="login-username">Nickname</label>
+              <input type="text" id="login-username" placeholder="bv. jansen" required autofocus />
               <button class="p-button--positive" type="submit">Inloggen</button>
             </form>
             <p id="login-status" class="u-hide">Bezig met aanmelden...</p>
@@ -280,8 +280,8 @@
         <input type="text" id="req-room-name" required />
         <label for="req-room-purpose">Doel / omschrijving</label>
         <textarea id="req-room-purpose" rows="3"></textarea>
-        <label for="req-room-members">Voorgestelde leden (komma-gescheiden, bv. NETWORK.TLD\naam)</label>
-        <input type="text" id="req-room-members" placeholder="NETWORK.TLD\jansen, NETWORK.TLD\devries" />
+        <label for="req-room-members">Voorgestelde leden (komma-gescheiden nicknames)</label>
+        <input type="text" id="req-room-members" placeholder="jansen, devries" />
         <footer class="p-modal__footer">
           <button class="p-button--base" type="button" data-close-modal>Annuleren</button>
           <button class="p-button--positive" type="submit">Aanvragen</button>
@@ -301,8 +301,8 @@
         <h4>Leden &amp; managers</h4>
         <ul id="manage-room-member-list" class="p-list"></ul>
         <form id="add-member-form">
-          <label for="add-member-username">Gebruiker toevoegen (NETWORK.TLD\naam)</label>
-          <input type="text" id="add-member-username" required />
+          <label for="add-member-username">Gebruiker toevoegen (nickname)</label>
+          <input type="text" id="add-member-username" placeholder="bv. jansen" required />
           <label class="p-checkbox">
             <input type="checkbox" id="add-member-as-manager" class="p-checkbox__input" />
             <span class="p-checkbox__label">Als manager toevoegen</span>

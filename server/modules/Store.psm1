@@ -146,14 +146,22 @@ function Read-JsonFile {
     }
 
     if ($raw.TrimStart().StartsWith('[')) {
-        # ConvertFrom-Json on a JSON array emits each element as a separate
-        # pipeline object - for "[]" that is zero objects, which collapses
-        # a bare "$x = ... | ConvertFrom-Json" assignment straight to $null
-        # (and a single-element array to a bare scalar). Wrapping the whole
-        # pipeline in @() atomically captures 0/1/N elements correctly, and
-        # the leading comma protects that array across this function's own
-        # return boundary, which would otherwise unroll it right back.
-        return , @($raw | ConvertFrom-Json)
+        # ConvertFrom-Json behaves OPPOSITELY on the two PowerShell versions
+        # this must run on. PowerShell 7 emits each JSON-array element as a
+        # separate pipeline object (so "[]" is zero objects and a bare
+        # assignment collapses to $null - hence the @() wrap). Windows
+        # PowerShell 5.1 instead emits the WHOLE array as ONE pipeline
+        # object, so on 5.1 a bare @(...) wrap NESTS it: you get a
+        # 1-element array whose only element is the real element array.
+        # Every later "$x | Where-Object { $_.prop }" then receives that
+        # inner array as $_ and dies under StrictMode with "The property
+        # '...' cannot be found on this object" - the production login-500
+        # crash. ForEach-Object { $_ } re-emits (and thereby flattens)
+        # exactly one collection level on both versions, so combined with
+        # @() this yields a flat 0/1/N-element array everywhere. The
+        # leading comma still protects the result across this function's
+        # own return boundary, which would otherwise unroll it right back.
+        return , @($raw | ConvertFrom-Json | ForEach-Object { $_ })
     }
     return $raw | ConvertFrom-Json
 }
