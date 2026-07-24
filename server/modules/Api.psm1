@@ -197,6 +197,9 @@ function Get-RoomsForUser {
     # one-match result doesn't collapse to $null/a bare scalar before
     # ForEach-Object gets to see it.
     $allRooms = Get-Rooms
+    # Explicit, version-independent normalization - see the comment on
+    # Get-UserProfile in Store.psm1 for why this can't be left implicit.
+    if ($null -eq $allRooms) { $allRooms = @() } elseif ($allRooms -isnot [array]) { $allRooms = @($allRooms) }
     $summaries = @($allRooms | Where-Object { Test-CanAccessRoom -Room $_ -Username $User.Username } | ForEach-Object { ConvertTo-RoomSummary -Room $_ -Username $User.Username })
     Send-JsonResponse -Context $Context -Data $summaries
 }
@@ -291,6 +294,7 @@ function Get-PendingRoomRequests {
     # See the comment in Get-RoomsForUser: capture before piping, and keep
     # the filter wrapped in one @(...) expression.
     $allRequests = Get-RoomRequests
+    if ($null -eq $allRequests) { $allRequests = @() } elseif ($allRequests -isnot [array]) { $allRequests = @($allRequests) }
     $pending = @($allRequests | Where-Object { $_.status -eq 'pending' })
     Send-JsonResponse -Context $Context -Data $pending
 }
@@ -418,6 +422,7 @@ function Get-AdminUsers {
     # in Store.psm1 for why "Get-Users | ForEach-Object" directly would be
     # wrong (Get-Users comma-protects its array return).
     $allUsers = Get-Users
+    if ($null -eq $allUsers) { $allUsers = @() } elseif ($allUsers -isnot [array]) { $allUsers = @($allUsers) }
     $users = @($allUsers | ForEach-Object {
         [pscustomobject]@{
             username    = $_.username

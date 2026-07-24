@@ -241,13 +241,24 @@ function Get-UserProfile {
         [switch]$CreateIfMissing
     )
     $users = Get-Users
+    # Defensive, explicit normalization rather than relying on comma-operator
+    # array-boundary behavior: that was verified against PowerShell 7/.NET 8
+    # in this environment, but this project's actual target is Windows
+    # PowerShell 5.1/.NET Framework, which has been observed (see git log)
+    # to collapse an empty Get-Users result differently, breaking a bare
+    # "$users | Where-Object ..." with a StrictMode "property not found"
+    # error. This check is unambiguous regardless of PowerShell version.
+    if ($null -eq $users) { $users = @() } elseif ($users -isnot [array]) { $users = @($users) }
     $existing = $users | Where-Object { $_.username -eq $Username } | Select-Object -First 1
     if ($existing) { return $existing }
     if (-not $CreateIfMissing) { return $null }
 
     $created = Update-JsonStore -Path $script:Paths.UsersFile -DefaultValue @() -Transform {
         param($list)
-        $list = @($list)
+        # Explicit normalization (see Get-UserProfile's comment on why):
+        # a bare @($list) would turn a genuine $null into a 1-element
+        # array *containing* null instead of an empty array.
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
         $already = $list | Where-Object { $_.username -eq $Username }
         if ($already) { return , $list }
         $newUser = [pscustomobject]@{
@@ -271,7 +282,10 @@ function Update-UserLastSeen {
     param([Parameter(Mandatory)][string]$Username)
     [void](Update-JsonStore -Path $script:Paths.UsersFile -DefaultValue @() -Transform {
         param($list)
-        $list = @($list)
+        # Explicit normalization (see Get-UserProfile's comment on why):
+        # a bare @($list) would turn a genuine $null into a 1-element
+        # array *containing* null instead of an empty array.
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
         foreach ($u in $list) {
             if ($u.username -eq $Username) { $u.lastSeen = (Get-Date).ToUniversalTime().ToString('o') }
         }
@@ -297,7 +311,10 @@ function Set-UserSettings {
     $hasDisplayNameOverride = $PSBoundParameters.ContainsKey('DisplayNameOverride')
     return Update-JsonStore -Path $script:Paths.UsersFile -DefaultValue @() -Transform {
         param($list)
-        $list = @($list)
+        # Explicit normalization (see Get-UserProfile's comment on why):
+        # a bare @($list) would turn a genuine $null into a 1-element
+        # array *containing* null instead of an empty array.
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
         foreach ($u in $list) {
             if ($u.username -eq $Username) {
                 if ($DisplayName) { $u.displayName = $DisplayName }
@@ -317,7 +334,10 @@ function Set-UserAdmin {
     )
     return Update-JsonStore -Path $script:Paths.UsersFile -DefaultValue @() -Transform {
         param($list)
-        $list = @($list)
+        # Explicit normalization (see Get-UserProfile's comment on why):
+        # a bare @($list) would turn a genuine $null into a 1-element
+        # array *containing* null instead of an empty array.
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
         foreach ($u in $list) {
             if ($u.username -eq $Username) { $u.isAdmin = $IsAdmin }
         }
@@ -347,6 +367,9 @@ function Get-Room {
     # Piping an already-assigned array *variable* does not have this
     # problem - only a live function-call-to-pipe does.
     $rooms = Get-Rooms
+    # See the normalization comment in Get-UserProfile: explicit rather
+    # than relying on comma-operator behavior across PowerShell versions.
+    if ($null -eq $rooms) { $rooms = @() } elseif ($rooms -isnot [array]) { $rooms = @($rooms) }
     return $rooms | Where-Object { $_.id -eq $RoomId } | Select-Object -First 1
 }
 
@@ -454,6 +477,8 @@ function Approve-RoomRequest {
     )
     # See the comment in Get-Room: capture before piping, not "FunctionCall | Where-Object" directly.
     $allRequests = Get-RoomRequests
+    # See the normalization comment in Get-UserProfile.
+    if ($null -eq $allRequests) { $allRequests = @() } elseif ($allRequests -isnot [array]) { $allRequests = @($allRequests) }
     $request = $allRequests | Where-Object { $_.id -eq $RequestId } | Select-Object -First 1
     if (-not $request) { throw "Aanvraag $RequestId niet gevonden." }
     if ($request.status -ne 'pending') { throw "Aanvraag $RequestId is al verwerkt." }
@@ -572,9 +597,12 @@ function Get-RoomMessages {
         [int]$Limit = 100
     )
     $path = Get-RoomMessageFile -RoomId $RoomId
-    # No @() here - see the comment on Read-JsonFile: it already returns a
-    # properly-shaped array on its own.
     $all = Read-JsonFile -Path $path -DefaultValue @()
+    # See the normalization comment in Get-UserProfile. $all.Count below
+    # would throw (or on PowerShell 7+ only, silently read as 0 - not a
+    # guarantee to rely on) if $all collapsed to $null instead of a real
+    # empty array.
+    if ($null -eq $all) { $all = @() } elseif ($all -isnot [array]) { $all = @($all) }
     if ($all.Count -le $Limit) { return , $all }
     return , $all[($all.Count - $Limit)..($all.Count - 1)]
 }
@@ -603,7 +631,11 @@ function Add-RoomMessage {
 
     [void](Update-JsonStore -Path $path -DefaultValue @() -Transform {
         param($list)
-        $list = @($list) + $message
+        # Explicit normalization (see Get-UserProfile's comment on why):
+        # a bare @($list) would turn a genuine $null into a 1-element
+        # array *containing* null instead of an empty array.
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
+        $list = $list + $message
         if ($list.Count -gt $limit) { $list = $list[($list.Count - $limit)..($list.Count - 1)] }
         return , $list
     })
@@ -635,15 +667,17 @@ function Add-FileRecord {
     }
     [void](Update-JsonStore -Path $script:Paths.FilesFile -DefaultValue @() -Transform {
         param($list)
-        return , (@($list) + $record)
+        if ($null -eq $list) { $list = @() } elseif ($list -isnot [array]) { $list = @($list) }
+        return , ($list + $record)
     })
     return $record
 }
 
 function Get-FileRecord {
     param([Parameter(Mandatory)][string]$FileId)
-    # No @() here - see the comment on Read-JsonFile.
     $all = Read-JsonFile -Path $script:Paths.FilesFile -DefaultValue @()
+    # See the normalization comment in Get-UserProfile.
+    if ($null -eq $all) { $all = @() } elseif ($all -isnot [array]) { $all = @($all) }
     return $all | Where-Object { $_.id -eq $FileId } | Select-Object -First 1
 }
 
