@@ -1,6 +1,6 @@
 // Bootstraps the SPA: signs the user in (a self-declared, unverified
-// NETWERK.TLD\gebruikersnaam - see Auth.psm1 for why), wires the tab
-// navigation and hands off to the feature modules.
+// nickname - see Auth.psm1 for why), wires the tab navigation and hands
+// off to the feature modules.
 import { Api } from './api.js';
 import { connectWs, onWs, sendWs, closeWs } from './ws.js';
 import { state } from './state.js';

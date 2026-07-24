@@ -19,8 +19,8 @@ delen en spraakgesprekken.
 
 ## ⚠️ Belangrijk: inloggen is niet geverifieerd
 
-Gebruikers loggen in door zelf een naam in te typen - `NETWERK.TLD\gebruikersnaam`
-of gewoon een korte nickname zoals `jansen` mag allebei - dit wordt **niet** gecontroleerd tegen Active Directory of een
+Gebruikers loggen in door zelf een nickname in te typen (bv. `jansen`) - dit
+wordt **niet** gecontroleerd tegen Active Directory of een
 wachtwoord. Wie er ook toegang heeft tot de server, kan zich voordoen als
 elke andere gebruiker. Dit is een bewuste keuze omdat er geen
 beheerdersrechten beschikbaar waren om `HttpListener` met Integrated
@@ -35,9 +35,8 @@ authenticatie.
 - **Tabbladen-GUI**: Chats, Oproepen &amp; scherm delen, Instellingen, en
   (voor beheerders) Beheer.
 - **Login zonder wachtwoord, wel zonder verificatie**: gebruikers typen
-  eenmalig een naam of nickname in (`NETWERK.TLD\gebruikersnaam` of gewoon
-  `jansen`); de server onthoudt dat via een cookie. Zie de
-  beveiligingswaarschuwing hierboven.
+  eenmalig een nickname in (bv. `jansen`); de server onthoudt dat via een
+  cookie. Zie de beveiligingswaarschuwing hierboven.
 - **Openbare chatrooms**: door een beheerder aangemaakt, zichtbaar voor de
   hele afdeling; iedereen die lid is, is ook manager (kan onderwerp/naam
   wijzigen).
@@ -110,10 +109,9 @@ hoefde dus verder niets aan te veranderen.
 
 ## Starten
 
-1. Zet in `server/config/server.config.json` minimaal je eigen
-   `initialAdmins` (bv. `"NETWERK.TLD\\jouwaccount"`, of gewoon een korte
-   nickname zoals `"jouwnaam"`), zodat je bij de eerste start toegang hebt
-   tot het Beheer-tabblad - log daarna in met exact diezelfde naam.
+1. Zet in `server/config/server.config.json` minimaal je eigen nickname in
+   `initialAdmins` (bv. `"jouwnaam"`), zodat je bij de eerste start toegang
+   hebt tot het Beheer-tabblad - log daarna in met exact diezelfde nickname.
 2. Start de server (een heel gewoon, niet-verhoogd PowerShell-venster
    volstaat):
 
