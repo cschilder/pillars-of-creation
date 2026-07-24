@@ -11,6 +11,13 @@ Dit is nadrukkelijk **geen Skype-kloon** (dat mag ook niet), maar een eigen
 opzet met vergelijkbare functionaliteit: chatrooms, bestanden delen, scherm
 delen en spraakgesprekken.
 
+> **Handleidingen met schermafbeeldingen:**
+> [Gebruikershandleiding](docs/gebruikershandleiding.md) (chatten, bellen,
+> scherm delen, instellingen) en
+> [Beheerdershandleiding](docs/beheerdershandleiding.md) (installatie,
+> configuratie, gebruikers- en roombeheer). Dit README richt zich vooral op
+> de technische opzet.
+
 ## Functionaliteit
 
 - **Tabbladen-GUI**: Chats, Oproepen &amp; scherm delen, Instellingen, en

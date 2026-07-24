@@ -4,8 +4,37 @@
   display: none !important;
 }
 
+/* Vanilla Framework's .p-panel defaults to min-height:100%, which (inside
+   a flex grid row that stretches columns to an equal height) makes the
+   first of two stacked panels in a column balloon to fill the whole row
+   height, shoving the second panel far down. We stack independent panels
+   directly, so opt back out; .chat-panel below still sets its own
+   deliberate min-height. */
+.p-panel {
+  min-height: auto;
+}
+
+.p-panel + .p-panel {
+  margin-top: 1.5rem;
+}
+
 #login-gate {
   max-width: 40rem;
+}
+
+/* Defensive resets: some list-based Vanilla Framework components render
+   bare bullets unless the surrounding markup exactly matches their
+   expected structure - simpler and more robust to reset explicitly. */
+.p-tabs__list,
+.p-navigation__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.p-navigation__logo-title {
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .room-list-panel .p-panel__content,
