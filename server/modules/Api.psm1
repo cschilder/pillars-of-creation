@@ -101,6 +101,30 @@ function Assert-Admin {
     return $true
 }
 
+function Get-BodyValue {
+    <#
+        Safe property read from a client-supplied JSON body. Under
+        Set-StrictMode, "$body.foo" THROWS when the client didn't send
+        "foo" at all (instead of returning $null) - which turned optional
+        request fields into 500s (the settings form never sends
+        "displayName", so every settings save crashed on exactly that).
+        Every $body access in this module goes through this helper so a
+        missing field is always just its default, never an exception.
+    #>
+    param($Body, [Parameter(Mandatory)][string]$Name, $Default = $null)
+    # Deliberately NO comma-protection on these returns, unlike the store
+    # helpers: every caller that expects an array already wraps the call in
+    # @(...), and @( <comma-protected return> ) double-wraps into a nested
+    # array (verified: the members list then arrives as 1 element of type
+    # Object[] instead of N strings). A plain return + @() at the call site
+    # handles 0/1/N elements correctly; scalar values are unaffected.
+    if ($null -eq $Body) { return $Default }
+    if (Get-Member -InputObject $Body -Name $Name -ErrorAction SilentlyContinue) {
+        return $Body.$Name
+    }
+    return $Default
+}
+
 # ---------------------------------------------------------------------------
 # Login / logout - handled before any user is resolved (see
 # ConnectionWorker.ps1), since there is no user yet at login time. There is
@@ -111,7 +135,7 @@ function Assert-Admin {
 function Invoke-Login {
     param($Context)
     $body = Read-RequestJson -Context $Context
-    $username = if ($body -and $body.username) { "$($body.username)".Trim() } else { '' }
+    $username = "$(Get-BodyValue -Body $body -Name 'username' -Default '')".Trim()
 
     if (-not (Test-ValidUsernameFormat -Username $username)) {
         Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Vul een nickname in (bijvoorbeeld "jansen").'
@@ -151,17 +175,19 @@ function Set-MySettings {
     $body = Read-RequestJson -Context $Context
     $nSound = $null
     if ($null -ne $body -and (Get-Member -InputObject $body -Name notificationsSound -ErrorAction SilentlyContinue)) {
-        $nSound = [bool]$body.notificationsSound
+        $nSound = [bool](Get-BodyValue -Body $body -Name 'notificationsSound')
     }
     $override = $null
     $hasOverride = $false
     if ($null -ne $body -and (Get-Member -InputObject $body -Name displayNameOverride -ErrorAction SilentlyContinue)) {
-        $override = $body.displayNameOverride
+        $override = Get-BodyValue -Body $body -Name 'displayNameOverride'
         $hasOverride = $true
     }
     $params = @{ Username = $User.Username }
-    if ($body.displayName) { $params.DisplayName = $body.displayName }
-    if ($body.theme) { $params.Theme = $body.theme }
+    $displayName = Get-BodyValue -Body $body -Name 'displayName'
+    if ($displayName) { $params.DisplayName = $displayName }
+    $theme = Get-BodyValue -Body $body -Name 'theme'
+    if ($theme) { $params.Theme = $theme }
     if ($null -ne $nSound) { $params.NotificationsSound = $nSound }
     if ($hasOverride) { $params.DisplayNameOverride = $override }
     Set-UserSettings @params | Out-Null
@@ -208,16 +234,18 @@ function New-RoomAsAdmin {
     param($Context, $User)
     if (-not (Assert-Admin -User $User -Context $Context)) { return }
     $body = Read-RequestJson -Context $Context
-    if (-not $body -or -not $body.name) {
+    $name = Get-BodyValue -Body $body -Name 'name'
+    if (-not $name) {
         Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Naam is verplicht.'; return
     }
-    $topic = if ($body.topic) { $body.topic } else { '' }
-    if ($body.type -eq 'private') {
-        $room = New-PrivateRoom -Name $body.name -Topic $topic -CreatedBy $User.Username `
-            -Managers (@($body.managers)) -Members (@($body.members))
+    $topic = Get-BodyValue -Body $body -Name 'topic' -Default ''
+    if ((Get-BodyValue -Body $body -Name 'type') -eq 'private') {
+        $room = New-PrivateRoom -Name $name -Topic $topic -CreatedBy $User.Username `
+            -Managers (@(Get-BodyValue -Body $body -Name 'managers' -Default @())) `
+            -Members (@(Get-BodyValue -Body $body -Name 'members' -Default @()))
     }
     else {
-        $room = New-PublicRoom -Name $body.name -Topic $topic -CreatedBy $User.Username
+        $room = New-PublicRoom -Name $name -Topic $topic -CreatedBy $User.Username
     }
     Send-JsonResponse -Context $Context -StatusCode 201 -Data (ConvertTo-RoomSummary -Room $room -Username $User.Username)
 }
@@ -232,9 +260,9 @@ function Update-RoomApi {
     $body = Read-RequestJson -Context $Context
     $archived = $null
     if ($null -ne $body -and (Get-Member -InputObject $body -Name archived -ErrorAction SilentlyContinue)) {
-        $archived = [bool]$body.archived
+        $archived = [bool](Get-BodyValue -Body $body -Name 'archived')
     }
-    $updated = Update-RoomDetails -RoomId $RoomId -Name $body.name -Topic $body.topic -Archived $archived
+    $updated = Update-RoomDetails -RoomId $RoomId -Name (Get-BodyValue -Body $body -Name 'name') -Topic (Get-BodyValue -Body $body -Name 'topic') -Archived $archived
     Send-JsonResponse -Context $Context -Data (ConvertTo-RoomSummary -Room $updated -Username $User.Username)
 }
 
@@ -253,12 +281,12 @@ function Add-RoomMemberApi {
         Send-ErrorResponse -Context $Context -StatusCode 403 -Message 'Alleen managers mogen leden toevoegen.'; return
     }
     $body = Read-RequestJson -Context $Context
-    if (-not $body -or -not $body.username) {
+    $memberName = Get-BodyValue -Body $body -Name 'username'
+    if (-not $memberName) {
         Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'username is verplicht.'; return
     }
-    $asManager = $false
-    if (Get-Member -InputObject $body -Name asManager -ErrorAction SilentlyContinue) { $asManager = [bool]$body.asManager }
-    $updated = Add-RoomMember -RoomId $RoomId -Username $body.username -AsManager:$asManager
+    $asManager = [bool](Get-BodyValue -Body $body -Name 'asManager' -Default $false)
+    $updated = Add-RoomMember -RoomId $RoomId -Username $memberName -AsManager:$asManager
     Send-JsonResponse -Context $Context -Data (ConvertTo-RoomSummary -Room $updated -Username $User.Username)
 }
 
@@ -280,11 +308,12 @@ function Remove-RoomMemberApi {
 function New-RoomRequest {
     param($Context, $User)
     $body = Read-RequestJson -Context $Context
-    if (-not $body -or -not $body.name) {
+    $name = Get-BodyValue -Body $body -Name 'name'
+    if (-not $name) {
         Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Naam is verplicht.'; return
     }
-    $purpose = if ($body.purpose) { $body.purpose } else { '' }
-    $req = Add-RoomRequest -Name $body.name -Purpose $purpose -RequestedBy $User.Username -ProposedMembers (@($body.proposedMembers))
+    $purpose = Get-BodyValue -Body $body -Name 'purpose' -Default ''
+    $req = Add-RoomRequest -Name $name -Purpose $purpose -RequestedBy $User.Username -ProposedMembers (@(Get-BodyValue -Body $body -Name 'proposedMembers' -Default @()))
     Send-JsonResponse -Context $Context -StatusCode 201 -Data $req
 }
 
@@ -303,8 +332,8 @@ function Approve-RoomRequestApi {
     param($Context, $User, $RequestId)
     if (-not (Assert-Admin -User $User -Context $Context)) { return }
     $body = Read-RequestJson -Context $Context
-    $managers = if ($body -and $body.managers) { @($body.managers) } else { @() }
-    $members  = if ($body -and $body.members)  { @($body.members) }  else { @() }
+    $managers = @(Get-BodyValue -Body $body -Name 'managers' -Default @())
+    $members  = @(Get-BodyValue -Body $body -Name 'members' -Default @())
     $room = Approve-RoomRequest -RequestId $RequestId -Managers $managers -Members $members
     Send-JsonResponse -Context $Context -Data (ConvertTo-RoomSummary -Room $room -Username $User.Username)
 }
@@ -405,9 +434,9 @@ function Set-AdminConfig {
     $body = Read-RequestJson -Context $Context
     $maxUpload = $null
     $historyLimit = $null
-    if ($body -and (Get-Member -InputObject $body -Name maxUploadSizeMb -ErrorAction SilentlyContinue)) { $maxUpload = [int]$body.maxUploadSizeMb }
-    if ($body -and (Get-Member -InputObject $body -Name messageHistoryLimit -ErrorAction SilentlyContinue)) { $historyLimit = [int]$body.messageHistoryLimit }
-    $updated = Set-AppConfig -DepartmentName $body.departmentName -MaxUploadSizeMb $maxUpload -MessageHistoryLimit $historyLimit
+    if ($body -and (Get-Member -InputObject $body -Name maxUploadSizeMb -ErrorAction SilentlyContinue)) { $maxUpload = [int](Get-BodyValue -Body $body -Name 'maxUploadSizeMb') }
+    if ($body -and (Get-Member -InputObject $body -Name messageHistoryLimit -ErrorAction SilentlyContinue)) { $historyLimit = [int](Get-BodyValue -Body $body -Name 'messageHistoryLimit') }
+    $updated = Set-AppConfig -DepartmentName (Get-BodyValue -Body $body -Name 'departmentName') -MaxUploadSizeMb $maxUpload -MessageHistoryLimit $historyLimit
     Send-JsonResponse -Context $Context -Data $updated
 }
 
