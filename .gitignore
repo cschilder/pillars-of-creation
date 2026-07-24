@@ -1,0 +1,11 @@
+# Runtime application data - created automatically by Initialize-Store
+# on first run (see server/modules/Store.psm1). Not part of the source.
+/data/rooms.json
+/data/users.json
+/data/files.json
+/data/app-config.json
+/data/messages/*.json
+
+# Uploaded files.
+/uploads/**
+!/uploads/.gitkeep
