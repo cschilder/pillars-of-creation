@@ -50,7 +50,7 @@ $ErrorActionPreference = 'Stop'
 # screenshot van de opstart altijd meteen laat zien of dit wel/niet de
 # nieuwste versie is (dit voorkomt de "zelfde bug na de fix" verwarring die
 # ontstaat als een oude kopie van de bestanden per ongeluk blijft draaien).
-$script:AppBuildVersion = '2026-07-24.4-ps51-login-fix'
+$script:AppBuildVersion = '2026-07-24.5-ws-framework-fix'
 Write-Host "Build: $script:AppBuildVersion" -ForegroundColor DarkGray
 
 # --- Config inlezen en paden oplossen -------------------------------------
