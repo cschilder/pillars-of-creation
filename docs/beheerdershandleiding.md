@@ -10,15 +10,16 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
 ## Inhoud
 
 1. [Hoe de app werkt (kort)](#hoe-de-app-werkt-kort)
-2. [Vereisten](#vereisten)
-3. [Installatie](#installatie)
-4. [De server starten](#de-server-starten)
-5. [Eerste keer inloggen als beheerder](#eerste-keer-inloggen-als-beheerder)
-6. [Het tabblad Beheer](#het-tabblad-beheer)
-7. [Een privéroom achteraf beheren](#een-priv%C3%A9room-achteraf-beheren)
-8. [Onderhoud](#onderhoud)
-9. [Problemen oplossen](#problemen-oplossen)
-10. [Beveiligingsoverwegingen](#beveiligingsoverwegingen)
+2. [Belangrijk: geen echte authenticatie](#belangrijk-geen-echte-authenticatie)
+3. [Vereisten](#vereisten)
+4. [Installatie](#installatie)
+5. [De server starten](#de-server-starten)
+6. [Eerste keer inloggen als beheerder](#eerste-keer-inloggen-als-beheerder)
+7. [Het tabblad Beheer](#het-tabblad-beheer)
+8. [Een privéroom achteraf beheren](#een-priv%C3%A9room-achteraf-beheren)
+9. [Onderhoud](#onderhoud)
+10. [Problemen oplossen](#problemen-oplossen)
+11. [Beveiligingsoverwegingen](#beveiligingsoverwegingen)
 
 ## Hoe de app werkt (kort)
 
@@ -26,25 +27,48 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
   de chatgeschiedenis, geüploade bestanden én de live verbindingen. Iedereen
   op de afdeling opent gewoon een browser naar
   `http://<servernaam>:8080/`.
-- **Inloggen gaat automatisch** via Integrated Windows Authentication: de
-  server leest de Windows-identiteit (`NETWERK.TLD\gebruikersnaam`) die de
-  browser meestuurt. Er is geen apart wachtwoord of gebruikersbeheer nodig.
+- **Geen beheerdersrechten nodig.** De server draait op een gewone
+  `System.Net.Sockets.TcpListener` in plaats van
+  `System.Net.HttpListener`, juist omdat die laatste altijd ofwel
+  Administrator-rechten ofwel een vooraf door een beheerder geregistreerde
+  URL-reservering (`netsh http add urlacl`) vereist - ook voor
+  `http://localhost/`. Een gewone TCP-poort openen is op Windows nooit een
+  verhoogde actie geweest, dus dat obstakel is er met deze opzet niet.
 - **Spraakgesprekken en scherm delen lopen via de server** (een "relay"),
   niet rechtstreeks tussen collega's. Dat is bewust zo gekozen: het werkt
   betrouwbaar binnen het bedrijfsnetwerk zonder extra infrastructuur zoals
   STUN/TURN-servers, met als afweging iets meer vertraging dan bijvoorbeeld
   Teams of Skype.
-- **Alles draait op Windows PowerShell 5.1** (standaard aanwezig op Windows),
-  met `System.Net.HttpListener` als ingebouwde webserver.
+- **Alles draait op Windows PowerShell 5.1** (standaard aanwezig op
+  Windows).
+
+## Belangrijk: geen echte authenticatie
+
+Omdat er geen beheerdersrechten nodig zijn om deze server te draaien, is er
+ook geen Integrated Windows Authentication (dat werkt alleen via
+`HttpListener`/http.sys). In plaats daarvan typt elke gebruiker zelf zijn
+`NETWERK.TLD\gebruikersnaam` in bij het inloggen - **dit wordt niet
+gecontroleerd tegen Active Directory of een wachtwoord.** Wie er toegang
+toe heeft, kan zich voordoen als een willekeurige andere gebruiker,
+inclusief beheerders (als die naam geraden of bekend is).
+
+Praktisch betekent dit:
+
+- Draai deze server alleen binnen een netwerk/team dat je al vertrouwt -
+  niet breed toegankelijk binnen een groot, open bedrijfsnetwerk als daar
+  gevoelige gesprekken in privérooms plaatsvinden.
+- Zorg voor een wat minder voor-de-hand-liggende poort/hostnaam als je
+  extra drempel wilt, al is dat geen echte beveiliging.
+- Overweeg bij twijfel de firewallregel (zie [De server starten](#de-server-starten))
+  te beperken tot een specifiek subnet in plaats van de hele
+  bedrijfsomgeving.
 
 ## Vereisten
 
 - Een Windows-server of -pc met **Windows PowerShell 5.1**
   (controleer met `$PSVersionTable.PSVersion` in PowerShell).
-- De servermachine moet lid zijn van hetzelfde Active Directory-domein als
-  de gebruikers, zodat Integrated Windows Authentication werkt.
-- Beheerdersrechten op die machine (voor de poortbinding), of een vooraf
-  geregistreerde URL-ACL (zie [De server starten](#de-server-starten)).
+- **Geen beheerdersrechten nodig** - een gewoon gebruikersaccount volstaat
+  om de server te starten.
 - Bij de gebruikers: Chrome of Edge (voor scherm delen, microfoon en de
   moderne webtechnieken die de app gebruikt).
 
@@ -60,8 +84,7 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
    ```json
    {
      "departmentName": "Afdeling Chat",
-     "prefixes": [ "http://+:8080/" ],
-     "authentication": "IntegratedWindowsAuthentication",
+     "port": 8080,
      "dataDir": "..\\data",
      "uploadsDir": "..\\uploads",
      "wwwrootDir": "..\\wwwroot",
@@ -75,12 +98,18 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
    }
    ```
 
-   - `prefixes`: op welke poort(en) de server luistert. Pas dit aan als
-     poort 8080 al in gebruik is.
+   - `port`: op welke poort de server luistert. Pas dit aan als poort 8080
+     al in gebruik is.
    - `initialAdmins`: één of meer accounts die vanaf de allereerste start
      beheerder zijn. Later kun je via het Beheer-tabblad ook andere
      collega's tot beheerder promoveren (zie verderop) - die hoeven dan niet
-     in dit bestand te staan.
+     in dit bestand te staan. Let op: dit is puur een naam die het systeem
+     vertrouwt als beheerder zodra iemand ermee inlogt (zie de
+     [waarschuwing hierboven](#belangrijk-geen-echte-authenticatie)) - er
+     wordt niet gecontroleerd of degene die inlogt ook echt die persoon is.
+   - `departmentName`, `maxUploadSizeMb` en `messageHistoryLimit` zijn de
+     startwaarden; je kunt ze later ook via het Beheer-tabblad aanpassen
+     zonder de server opnieuw te starten.
 
 3. Laat `dataDir`, `uploadsDir` en `wwwrootDir` staan zoals ze zijn, tenzij
    je bewust een andere mapstructuur wilt. Deze mappen worden bij de eerste
@@ -88,7 +117,8 @@ bellen, bestanden delen), zie de [Gebruikershandleiding](gebruikershandleiding.m
 
 ## De server starten
 
-Open **PowerShell als Administrator** en start het opstartscript:
+Open een heel gewoon (niet-verhoogd) PowerShell-venster en start het
+opstartscript:
 
 ```powershell
 cd D:\AfdelingChat\server
@@ -99,10 +129,15 @@ Je ziet dan zoiets als:
 
 ```
 === Afdeling Chat - chatserver gestart ===
-Luistert op: http://+:8080/
+Luistert op: http://0.0.0.0:8080/ (geen Administrator-rechten nodig)
 wwwroot:     D:\AfdelingChat\wwwroot
 data:        D:\AfdelingChat\data
 uploads:     D:\AfdelingChat\uploads
+
+Let op: gebruikers loggen in door zelf hun NETWERK.TLD\gebruikersnaam
+in te typen - dit wordt niet tegen Active Directory geverifieerd. Draai
+deze server alleen binnen een netwerk dat je al vertrouwt.
+
 Druk op Ctrl+C om te stoppen.
 ```
 
@@ -110,32 +145,39 @@ Laat dit venster openstaan (of richt de server later in als Windows-dienst /
 geplande taak die bij het opstarten van de server automatisch draait - dat
 valt buiten deze handleiding, maar elk hulpmiddel dat een PowerShell-script
 continu kan laten draaien werkt hiervoor, zoals NSSM of Taakplanner met
-"Opnieuw uitvoeren bij falen").
+"Opnieuw uitvoeren bij falen"). Geen van die opties vereist dat het script
+zelf als Administrator draait.
 
-### Draai je liever niet als Administrator?
+### Bereikbaar maken voor collega's op andere machines
 
-Registreer dan eenmalig een URL-ACL met een beheerdersaccount, en start de
-server daarna gewoon als normale gebruiker:
+Standaard is de server voor iedereen op het netwerk bereikbaar zodra ze het
+juiste adres weten, maar de Windows Firewall blokkeert inkomend verkeer op
+de gebruikte poort meestal totdat je daar een regel voor toevoegt. Dat ene
+firewall-commando vereist wel adminrechten - vraag dit desnoods eenmalig
+aan IT, het is een firewallregel en géén http.sys-poortreservering:
 
 ```powershell
-netsh http add urlacl url=http://+:8080/ user="NETWERK.TLD\gebruikersnaam-of-groep"
 New-NetFirewallRule -DisplayName "Afdeling Chat" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
 ```
 
+Zonder deze regel werkt de server nog steeds voor jezelf via
+`http://localhost:8080/`.
+
 ### HTTPS (optioneel)
 
-Standaard draait de server over gewone HTTP, wat prima werkt binnen een
-vertrouwd bedrijfsnetwerk (de Windows-aanmelding werkt ook over HTTP). Wil
-je toch TLS, bind dan met `netsh http add sslcert` een certificaat aan de
-poort en wijzig het prefix naar `https://+:8443/` in
-`server.config.json` - de rest van de configuratie blijft gelijk.
+Deze server draait over gewone HTTP. Omdat er (bewust, zie hierboven) geen
+`HttpListener` meer gebruikt wordt, is de eerder gebruikelijke
+`netsh http add sslcert`-route niet meer van toepassing. Wil je toch TLS,
+dan is dat op dit moment niet ingebouwd - overweeg in dat geval een
+reverse proxy (bijvoorbeeld IIS of nginx) die zelf HTTPS afhandelt en
+doorstuurt naar deze server op `http://localhost:8080/`.
 
 ## Eerste keer inloggen als beheerder
 
-Open op je eigen werkplek `http://<servernaam>:8080/` in Chrome of Edge. Je
-wordt automatisch herkend via je Windows-sessie:
+Open op je eigen werkplek `http://<servernaam>:8080/` in Chrome of Edge en
+vul je eigen account (uit `initialAdmins`) in bij het inlogscherm:
 
-![Inlogscherm terwijl de Windows-sessie wordt herkend](images/01-inloggen.png)
+![Inlogscherm met naam-invoer en waarschuwing dat deze niet geverifieerd wordt](images/01-inloggen.png)
 
 Sta je in `initialAdmins`, dan zie je meteen een extra tabblad **Beheer**
 naast Chats, Oproepen & scherm delen en Instellingen.
@@ -189,7 +231,10 @@ en een selectievakje **Beheerder**. Vink dit aan om iemand beheerdersrechten
 te geven, of uit om ze weer in te trekken.
 
 > Gebruikers die nog nooit hebben ingelogd, staan hier nog niet tussen - de
-> lijst vult zich vanzelf zodra iemand voor het eerst de app opent.
+> lijst vult zich vanzelf zodra iemand voor het eerst de app opent. En
+> omdat inloggen ongeverifieerd is (zie de waarschuwing bovenaan), betekent
+> promoveren tot beheerder hier vooral: "vertrouw iedereen die met deze
+> naam inlogt" - controleer dus buiten de app om wie welke naam gebruikt.
 
 ## Een privéroom achteraf beheren
 
@@ -220,24 +265,27 @@ interface.
 - **Herstarten**: de server mag gewoon herstart worden (bijvoorbeeld na een
   configuratiewijziging in `server.config.json`, die alleen bij het
   opstarten wordt ingelezen). Actieve gesprekken/verbindingen worden dan
-  verbroken, maar chatgeschiedenis en instellingen blijven bewaard.
+  verbroken, maar chatgeschiedenis en instellingen blijven bewaard. Let op:
+  ook de "wie is ingelogd"-cookies blijven bij gebruikers geldig na een
+  herstart (er is geen serverstatus voor sessies), dus niemand hoeft
+  opnieuw in te loggen.
 - **Updates**: vervang de bestanden in `server/` en `wwwroot/` door een
   nieuwere versie en herstart de server. De map `data/` en `uploads/` hoef
   je niet aan te raken.
 
 ## Problemen oplossen
 
-**De server start niet / "Kon de HttpListener niet starten".**
-Meestal is de poort al in gebruik door een ander programma, of ontbreken de
-rechten voor de binding. Start PowerShell als Administrator, of registreer
-eerst de URL-ACL zoals beschreven bij [De server starten](#de-server-starten).
+**De server start niet / "Kon niet luisteren op poort ...".**
+Meestal is de poort al in gebruik door een ander programma. Kies een andere
+poort in `server.config.json` (`port`) en probeer opnieuw. In tegenstelling
+tot de oudere, op `HttpListener` gebaseerde opzet is hiervoor nooit
+verhoogde toegang nodig.
 
-**Gebruikers krijgen een foutmelding bij het inloggen / blijven hangen op
-"Bezig met aanmelden...".**
-Controleer of de servermachine en de gebruiker in hetzelfde Active
-Directory-domein zitten, en of de gebruiker de pagina opent in Chrome of
-Edge (niet via een externe/anonieme verbinding buiten het domein - Integrated
-Windows Authentication werkt alleen binnen het vertrouwde netwerk).
+**Gebruikers krijgen een foutmelding bij het inloggen.**
+Controleer of ze de naam met een backslash hebben ingevuld
+(`NETWERK.TLD\gebruikersnaam`). Blijft het mislukken, controleer of de
+servermachine daadwerkelijk bereikbaar is vanaf hun werkplek (poort open in
+de firewall, zie [De server starten](#de-server-starten)).
 
 **Chatberichten of oproepen komen niet aan / blijven "verbinden".**
 Controleer of er geen firewall of proxy tussen gebruikers en de server in
@@ -249,13 +297,18 @@ Verhoog zo nodig `maxUploadSizeMb` bij [App-configuratie](#app-configuratie).
 
 ## Beveiligingsoverwegingen
 
-- Er is geen aparte inlogstap: toegang tot de app is zo veilig als de
-  toegang tot het bedrijfsnetwerk/domein zelf. Zorg dat de server niet
-  bereikbaar is vanaf buiten het vertrouwde netwerk zonder aanvullende
-  maatregelen (VPN, firewallregels).
-- Standaard loopt al het verkeer over gewone HTTP; overweeg HTTPS (zie
-  hierboven) als vertrouwelijkheid van het netwerkverkeer zelf een vereiste
-  is.
+- **Geen echte authenticatie** - dit is de belangrijkste afweging van deze
+  opzet. Zie [de waarschuwing hierboven](#belangrijk-geen-echte-authenticatie).
+  Iedereen die de server kan bereiken en een geldige naamnotatie invult,
+  komt erin - als een andere gebruiker, desnoods als beheerder.
+- Toegang tot de app is verder zo veilig als de toegang tot je netwerk
+  zelf. Zorg dat de server niet bereikbaar is vanaf buiten het vertrouwde
+  netwerk zonder aanvullende maatregelen (VPN, firewallregels beperkt tot
+  een subnet).
+- Standaard loopt al het verkeer over gewone HTTP, onversleuteld; overweeg
+  een reverse proxy met TLS (zie [HTTPS](#https-optioneel)) als
+  vertrouwelijkheid van het netwerkverkeer zelf een vereiste is.
 - Beheerdersrechten in de app (het Beheer-tabblad) zijn onafhankelijk van
   Windows-beheerdersrechten - het gaat puur om wie in `initialAdmins` staat
-  of later via de Gebruikers-tabel is gepromoveerd.
+  of later via de Gebruikers-tabel is gepromoveerd, gecombineerd met het
+  feit dat inlognamen niet worden geverifieerd.

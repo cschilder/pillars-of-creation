@@ -102,6 +102,35 @@ function Assert-Admin {
 }
 
 # ---------------------------------------------------------------------------
+# Login / logout - handled before any user is resolved (see
+# ConnectionWorker.ps1), since there is no user yet at login time. There is
+# deliberately no password or Active Directory check: the caller just
+# states DOMAIN\username and is trusted at face value (see Auth.psm1).
+# ---------------------------------------------------------------------------
+
+function Invoke-Login {
+    param($Context)
+    $body = Read-RequestJson -Context $Context
+    $username = if ($body -and $body.username) { "$($body.username)".Trim() } else { '' }
+
+    if (-not (Test-ValidUsernameFormat -Username $username)) {
+        Send-ErrorResponse -Context $Context -StatusCode 400 -Message 'Vul je gebruikersnaam in als NETWERK.TLD\gebruikersnaam.'
+        return
+    }
+
+    Get-UserProfile -Username $username -CreateIfMissing | Out-Null
+    $cookieValue = [uri]::EscapeDataString($username)
+    $Context.Response.Headers['Set-Cookie'] = "chatuser=$cookieValue; Path=/; HttpOnly; SameSite=Lax"
+    Send-JsonResponse -Context $Context -Data ([pscustomobject]@{ ok = $true; username = $username })
+}
+
+function Invoke-Logout {
+    param($Context)
+    $Context.Response.Headers['Set-Cookie'] = 'chatuser=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
+    Send-JsonResponse -Context $Context -Data ([pscustomobject]@{ ok = $true })
+}
+
+# ---------------------------------------------------------------------------
 # Profile / settings
 # ---------------------------------------------------------------------------
 
@@ -410,4 +439,4 @@ function Set-AdminUserRole {
     Send-JsonResponse -Context $Context -Data ([pscustomobject]@{ ok = $true })
 }
 
-Export-ModuleMember -Function Invoke-ApiRequest
+Export-ModuleMember -Function Invoke-ApiRequest, Invoke-Login, Invoke-Logout

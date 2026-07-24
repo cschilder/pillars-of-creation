@@ -19,7 +19,10 @@ function Initialize-Store {
     param(
         [Parameter(Mandatory)][string]$DataDir,
         [Parameter(Mandatory)][string]$UploadsDir,
-        [Parameter(Mandatory)][string[]]$InitialAdmins
+        [Parameter(Mandatory)][string[]]$InitialAdmins,
+        [string]$DepartmentName = 'Afdeling Chat',
+        [int]$MaxUploadSizeMb = 100,
+        [int]$MessageHistoryLimit = 500
     )
 
     $resolvedData = New-Item -ItemType Directory -Force -Path $DataDir | Select-Object -ExpandProperty FullName
@@ -66,9 +69,9 @@ function Initialize-Store {
 
     if (-not (Test-Path $script:Paths.AppConfigFile)) {
         $cfg = [pscustomobject]@{
-            departmentName       = 'Afdeling Chat'
-            maxUploadSizeMb      = 100
-            messageHistoryLimit  = 500
+            departmentName       = $DepartmentName
+            maxUploadSizeMb      = $MaxUploadSizeMb
+            messageHistoryLimit  = $MessageHistoryLimit
             initialAdmins        = @($InitialAdmins)
         }
         Write-JsonFile -Path $script:Paths.AppConfigFile -Data $cfg

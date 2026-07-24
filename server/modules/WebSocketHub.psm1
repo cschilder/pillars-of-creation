@@ -144,19 +144,19 @@ function Send-PresenceUpdate {
 
 function Start-WsConnection {
     <#
-        Accepts the WebSocket handshake for an already-authenticated
-        HttpListenerContext and runs the blocking receive loop for that
-        connection's lifetime. Meant to run inside its own dedicated
-        Runspace so it can block without stalling the accept loop or any
-        other connection.
+        Runs the blocking receive loop for one already-handshaked
+        WebSocket (see MiniHttp.psm1's Start-WebSocketHandshake, which
+        performs the RFC 6455 opening handshake by hand since there is no
+        HttpListener here) for that connection's lifetime. Meant to run
+        inside its own dedicated Runspace so it can block without
+        stalling the accept loop or any other connection.
     #>
     param(
-        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)]$Socket,
         [Parameter(Mandatory)]$User
     )
 
-    $wsContext = $Context.AcceptWebSocketAsync($null).GetAwaiter().GetResult()
-    $socket = $wsContext.WebSocket
+    $socket = $Socket
     $connectionId = [guid]::NewGuid().ToString()
 
     Register-WsClient -ConnectionId $connectionId -Socket $socket -Username $User.Username -DisplayName $User.DisplayName
