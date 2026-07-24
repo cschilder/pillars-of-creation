@@ -184,21 +184,23 @@
   vertical-align: middle;
 }
 
-:root[data-theme="dark"] body,
-body.theme-dark {
+/* "is-dark" is Vanilla Framework's own theme class (it flips the CSS custom
+   properties every component reads its colors from); these rules only add
+   dark variants for this app's OWN custom elements on top of that. */
+body.is-dark {
   background: #1a1a1a;
   color: #f0f0f0;
 }
 
-body.theme-dark .room-list button.room-list-item:hover {
+body.is-dark .room-list button.room-list-item:hover {
   background: #2a2a2a;
 }
 
-body.theme-dark .room-list button.room-list-item.is-active {
+body.is-dark .room-list button.room-list-item.is-active {
   background: #333;
 }
 
-body.theme-dark .chat-message-file,
-body.theme-dark .room-list li {
+body.is-dark .chat-message-file,
+body.is-dark .room-list li {
   border-color: #444;
 }

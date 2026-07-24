@@ -9,6 +9,22 @@ export async function initAdmin() {
   wireAppConfigForm();
   wireNewPublicRoomForm();
   await Promise.all([loadAppConfig(), refreshRoomRequests(), refreshAdminUsers()]);
+
+  // The snapshot above is taken during page bootstrap, BEFORE the
+  // WebSocket connects - so it can never show the viewer themselves as
+  // online, and it goes stale the moment anyone joins or leaves. Keep the
+  // list current while the Beheer tab is actually in view.
+  setInterval(() => {
+    const panel = document.querySelector('[data-tab-panel="admin"]');
+    if (panel && !panel.classList.contains('u-hide')) {
+      refreshAdminUsers().catch(() => {});
+      refreshRoomRequests().catch(() => {});
+    }
+  }, 10000);
+}
+
+export async function refreshAdminData() {
+  await Promise.all([refreshRoomRequests(), refreshAdminUsers()]);
 }
 
 async function loadAppConfig() {

@@ -19,7 +19,8 @@ export function initSettings() {
 
     const updated = await Api.updateMySettings({ displayNameOverride, theme, notificationsSound });
     state.me.settings = updated.settings;
-    document.body.classList.toggle('theme-dark', theme === 'dark');
+    // Vanilla Framework's own theme class - see the comment in app.js.
+    document.body.classList.toggle('is-dark', theme === 'dark');
 
     const saved = document.getElementById('user-settings-saved');
     saved.classList.remove('u-hide');

@@ -7,7 +7,7 @@ import { state } from './state.js';
 import { switchTab } from './ui.js';
 import { initRooms, handleChatWsMessage } from './chat.js';
 import { initSettings } from './settings.js';
-import { initAdmin } from './admin.js';
+import { initAdmin, refreshAdminData } from './admin.js';
 import { initFiles } from './files.js';
 import { initCall, handleCallSignal } from './call.js';
 import { initScreenShareViewer } from './screenshare.js';
@@ -17,6 +17,11 @@ function wireTabs() {
     a.addEventListener('click', (e) => {
       e.preventDefault();
       switchTab(a.dataset.tab);
+      // The admin lists (online status, pending requests) are otherwise a
+      // snapshot from page load; refresh the moment the tab is opened.
+      if (a.dataset.tab === 'admin' && state.me && state.me.isAdmin) {
+        refreshAdminData().catch(() => {});
+      }
     });
   });
 }
@@ -78,7 +83,12 @@ async function startApp(me) {
     document.title = me.departmentName;
   }
   if (me.isAdmin) document.getElementById('admin-tab-item').hidden = false;
-  document.body.classList.toggle('theme-dark', me.settings && me.settings.theme === 'dark');
+  // 'is-dark' is Vanilla Framework's own theme class: it flips the CSS
+  // custom properties that ALL vanilla components (panels, cards, tabs,
+  // tables, forms, modals) read their colors from. A homemade class that
+  // only restyles <body> leaves every component light - i.e. "nothing
+  // happens" visually when switching themes.
+  document.body.classList.toggle('is-dark', !!(me.settings && me.settings.theme === 'dark'));
 
   wireTabs();
   initSettings();
