@@ -88,6 +88,13 @@ function Get-ClientsInRoom {
 function Get-OnlineUsersInRoom {
     param([Parameter(Mandatory)][string]$RoomId)
     $entries = Get-ClientsInRoom -RoomId $RoomId
+    # Explicit, version-independent normalization - Get-ClientsInRoom
+    # returns a List[object] which, like an array, can collapse to $null
+    # crossing the function-return boundary when empty (see the matching
+    # comment on Get-UserProfile in Store.psm1). A room with zero
+    # connected clients is a completely normal, frequent case here (e.g.
+    # right as the last person leaves), so this isn't just an edge case.
+    if ($null -eq $entries) { $entries = @() } elseif ($entries -isnot [array]) { $entries = @($entries) }
     return @($entries | ForEach-Object { $_.Client.Username } | Select-Object -Unique)
 }
 
